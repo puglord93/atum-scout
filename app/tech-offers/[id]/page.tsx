@@ -70,18 +70,29 @@ function Field({ label, value, mono = false }: { label: string; value: React.Rea
   );
 }
 
-function ScoreBar({ score }: { score: number }) {
-  const color =
+function ScoreRow({ label, score, rationale }: { label: string; score: number; rationale: string | null }) {
+  const barColor =
     score >= 8 ? 'bg-green-500' :
     score >= 6 ? 'bg-blue-400' :
     score >= 4 ? 'bg-yellow-400' :
                  'bg-red-400';
+  const badgeColor =
+    score >= 8 ? 'bg-green-100 text-green-700' :
+    score >= 6 ? 'bg-blue-100 text-blue-700' :
+    score >= 4 ? 'bg-yellow-100 text-yellow-700' :
+                 'bg-red-100 text-red-700';
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${score * 10}%` }} />
+    <div className="pb-3 border-b border-gray-100 last:border-0 last:pb-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium text-gray-700">{label}</span>
+        <span className={`font-mono text-xs font-semibold px-1.5 py-0.5 rounded ${badgeColor}`}>{score}/10</span>
       </div>
-      <span className="font-mono text-sm font-semibold text-gray-900 w-4 text-right">{score}</span>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${score * 10}%` }} />
+      </div>
+      {rationale && (
+        <p className="text-xs text-gray-600 leading-relaxed">{rationale}</p>
+      )}
     </div>
   );
 }
@@ -172,9 +183,10 @@ export default function TechOfferDetailPage() {
   const vpMed = techOffer.venturePotential?.toLowerCase().includes('medium') || techOffer.venturePotential?.toLowerCase().includes('mod');
   const pursueYes = techOffer.atumPursue?.toLowerCase().startsWith('yes') || techOffer.atumPursue?.toLowerCase().startsWith('high');
   const pursueMaybe = techOffer.atumPursue?.toLowerCase().startsWith('maybe') || techOffer.atumPursue?.toLowerCase().startsWith('mod');
-  const isScored = techOffer.aiScoreMarketSize !== null;
+  const allScores = [techOffer.aiScoreMarketSize, techOffer.aiScoreIpMoat, techOffer.aiScoreTrlTrajectory, techOffer.aiScoreAtumFit];
+  const isScored = allScores.every(s => s !== null);
   const avgScore = isScored
-    ? Math.round(((techOffer.aiScoreMarketSize! + techOffer.aiScoreIpMoat! + techOffer.aiScoreTrlTrajectory! + techOffer.aiScoreAtumFit!) / 4) * 10) / 10
+    ? Math.round(((allScores as number[]).reduce((a, b) => a + b, 0) / 4) * 10) / 10
     : null;
 
   return (
@@ -301,33 +313,25 @@ export default function TechOfferDetailPage() {
               </div>
 
               {isScored ? (
-                <div className="space-y-3">
+                <div className="space-y-0">
                   {SCORE_DIMENSIONS.map(({ key, scoreField, rationaleField }) => {
                     const score = techOffer[scoreField];
                     const rationale = techOffer[rationaleField];
                     if (score === null) return null;
                     return (
-                      <div key={key}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-600">{key}</span>
-                        </div>
-                        <ScoreBar score={score} />
-                        {rationale && (
-                          <p className="text-xs text-gray-500 mt-1 leading-relaxed">{rationale}</p>
-                        )}
-                      </div>
+                      <ScoreRow key={key} label={key} score={score} rationale={rationale} />
                     );
                   })}
 
                   {techOffer.aiSummary && (
-                    <div className="pt-3 border-t border-gray-100">
-                      <div className="text-xs text-gray-500 mb-1">Summary</div>
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="text-xs font-medium text-gray-500 mb-1">Overall</div>
                       <p className="text-xs text-gray-700 leading-relaxed">{techOffer.aiSummary}</p>
                     </div>
                   )}
 
                   {techOffer.aiScoredAt && (
-                    <div className="text-xs text-gray-400 font-mono pt-1">
+                    <div className="text-xs text-gray-400 font-mono mt-2">
                       Scored {new Date(techOffer.aiScoredAt).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   )}

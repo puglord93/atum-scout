@@ -24,19 +24,30 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Tech offer not found' }, { status: 404 });
     }
 
-    const systemPrompt = `You are an AI analyst for ATUM Ventures, a deep-tech venture builder in Singapore. \
-Score the following technology offer across 4 dimensions (1–10 each) with a brief rationale (~25 words) \
-per dimension, plus an overall summary (~50 words).
+    const systemPrompt = `You are a critical analyst for ATUM Ventures, a deep-tech venture builder in Singapore. \
+Score the following technology offer rigorously across 4 dimensions (1–10 each). Be honest and calibrated — \
+most technologies score 4–7. Reserve 8–10 for genuinely exceptional cases. Scores of 9–10 should be rare.
 
-Scoring rubrics:
-- marketSize (1–10): 1 = niche/academic only; 5 = regional addressable market $100M+; 10 = global platform opportunity $1B+
-- ipMoat (1–10): 1 = no IP protection; 5 = patent pending or strong trade secret; 10 = granted broad patents + hard-to-replicate know-how
-- trlTrajectory (1–10): 1 = TRL 1-2 concept only; 5 = TRL 5-6 validated prototype; 10 = TRL 8-9 deployment ready
-- atumFit (1–10): alignment with ATUM's deep-tech verticals (Advanced Manufacturing, Biotech/Medtech, Energy/Climate) \
-and venture-building model; 1 = poor fit; 10 = perfect fit
+Scoring rubrics (be specific and critical):
+- marketSize: 1 = purely academic, no commercial path; 3 = niche vertical <$50M TAM; \
+5 = clear $100M–500M addressable market; 7 = $500M–2B market with proven demand; \
+9–10 = global platform >$2B with network effects. Penalise if market is crowded or buyer fatigue exists.
+- ipMoat: 1 = no IP, purely know-how; 3 = trade secret only; 5 = patent filed/pending; \
+7 = granted patent(s) with strong claims; 9–10 = broad patent portfolio + hard process know-how. \
+Penalise if prior art exists or it's software-only.
+- trlTrajectory: map TRL directly — TRL 1-2 = 1-2pts; TRL 3-4 = 3-4pts; TRL 5-6 = 5-6pts; \
+TRL 7 = 7pts; TRL 8 = 8pts; TRL 9 = 9-10pts. Penalise if TRL is unclear or self-reported.
+- atumFit: 1 = no fit (consumer, pure software, social); 4 = tangential fit; \
+6 = fits one ATUM vertical (Advanced Manufacturing, Biotech/Medtech, Energy/Climate); \
+8 = strong fit + aligns with ATUM's venture-building model (needs POC, pilot, spin-out); \
+10 = perfect fit, ATUM has direct network for commercialisation.
+
+For each dimension write a 2–3 sentence rationale (~50 words) that explains the specific evidence \
+behind the score — cite concrete details from the technology description. Do not be vague.
 
 Return ONLY valid JSON:
 {"marketSize":{"score":N,"rationale":"..."},"ipMoat":{"score":N,"rationale":"..."},"trlTrajectory":{"score":N,"rationale":"..."},"atumFit":{"score":N,"rationale":"..."},"summary":"..."}`;
+
 
     const fields = [
       `Technology: ${offer.technology}`,
