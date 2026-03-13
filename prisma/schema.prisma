@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Researcher {
+  id                Int      @id @default(autoincrement())
+  fullName          String   @map("full_name")
+  email             String?
+  affiliation       String
+  tier              String
+  hIndex            Int      @map("h_index")
+  citations         Int
+  cScore            Float    @map("c_score")
+  globalRank        Int?     @map("global_rank")
+  domainTags        String?  @map("domain_tags")
+  subfield          String?
+  category          String
+  noteOnResearch    String?  @map("note_on_research")
+  origin            String
+
+  // Contact tracking
+  contacted         Boolean  @default(false)
+  contactDate       String?  @map("contact_date")
+  contactedBy       String?  @map("contacted_by")
+
+  // Timestamps
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("researchers")
+}
+
+model TechOffer {
+  id                   Int      @id @default(autoincrement())
+  techId               String   @unique @map("tech_id")
+  technology           String
+  institution          String
+  trl                  String?
+  sector               String?
+  venturePotential     String?  @map("venture_potential")
+  description          String?
+  useCase              String?  @map("use_case")
+  vsExisting           String?  @map("vs_existing")
+  commercializationPath String? @map("commercialization_path")
+  atumPursue           String?  @map("atum_pursue")
+  likelyPi             String?  @map("likely_pi")
+  qualityTier          String?  @map("quality_tier")
+  notes                String?
+
+  // Timestamps
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("tech_offers")
+}
