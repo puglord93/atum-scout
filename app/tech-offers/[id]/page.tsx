@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { getStage } from '@/lib/stages';
 
 type TechOffer = {
   id: number;
@@ -20,6 +21,17 @@ type TechOffer = {
   likelyPi: string | null;
   qualityTier: string | null;
   notes: string | null;
+  // AI scoring
+  aiScoreMarketSize: number | null;
+  aiScoreIpMoat: number | null;
+  aiScoreTrlTrajectory: number | null;
+  aiScoreAtumFit: number | null;
+  aiRationaleMarketSize: string | null;
+  aiRationaleIpMoat: string | null;
+  aiRationaleTrlTrajectory: string | null;
+  aiRationaleAtumFit: string | null;
+  aiSummary: string | null;
+  aiScoredAt: string | null;
 };
 
 type Researcher = {
@@ -30,7 +42,7 @@ type Researcher = {
   tier: string;
   hIndex: number;
   citations: number;
-  contacted: boolean;
+  stage: string;
 };
 
 const TIER_COLORS: Record<string, string> = {
@@ -58,11 +70,35 @@ function Field({ label, value, mono = false }: { label: string; value: React.Rea
   );
 }
 
+function ScoreBar({ score }: { score: number }) {
+  const color =
+    score >= 8 ? 'bg-green-500' :
+    score >= 6 ? 'bg-blue-400' :
+    score >= 4 ? 'bg-yellow-400' :
+                 'bg-red-400';
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${score * 10}%` }} />
+      </div>
+      <span className="font-mono text-sm font-semibold text-gray-900 w-4 text-right">{score}</span>
+    </div>
+  );
+}
+
+const SCORE_DIMENSIONS = [
+  { key: 'Market Size',      scoreField: 'aiScoreMarketSize',       rationaleField: 'aiRationaleMarketSize'       },
+  { key: 'IP Moat',          scoreField: 'aiScoreIpMoat',           rationaleField: 'aiRationaleIpMoat'           },
+  { key: 'TRL Trajectory',   scoreField: 'aiScoreTrlTrajectory',    rationaleField: 'aiRationaleTrlTrajectory'    },
+  { key: 'ATUM Fit',         scoreField: 'aiScoreAtumFit',          rationaleField: 'aiRationaleAtumFit'          },
+] as const;
+
 export default function TechOfferDetailPage() {
   const params = useParams<{ id: string }>();
   const [techOffer, setTechOffer] = useState<TechOffer | null>(null);
   const [linkedResearcher, setLinkedResearcher] = useState<Researcher | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scoring, setScoring] = useState(false);
 
   useEffect(() => {
     if (params?.id) fetchTechOffer();
@@ -70,7 +106,7 @@ export default function TechOfferDetailPage() {
 
   useEffect(() => {
     if (techOffer?.likelyPi) fetchLinkedResearcher();
-  }, [techOffer]);
+  }, [techOffer?.likelyPi]);
 
   const fetchTechOffer = async () => {
     try {
@@ -102,6 +138,20 @@ export default function TechOfferDetailPage() {
     }
   };
 
+  const handleScore = async () => {
+    if (!techOffer) return;
+    setScoring(true);
+    try {
+      const res = await fetch(`/api/tech-offers/${params?.id}/score`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) setTechOffer(data.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setScoring(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
@@ -122,6 +172,10 @@ export default function TechOfferDetailPage() {
   const vpMed = techOffer.venturePotential?.toLowerCase().includes('medium') || techOffer.venturePotential?.toLowerCase().includes('mod');
   const pursueYes = techOffer.atumPursue?.toLowerCase().startsWith('yes') || techOffer.atumPursue?.toLowerCase().startsWith('high');
   const pursueMaybe = techOffer.atumPursue?.toLowerCase().startsWith('maybe') || techOffer.atumPursue?.toLowerCase().startsWith('mod');
+  const isScored = techOffer.aiScoreMarketSize !== null;
+  const avgScore = isScored
+    ? Math.round(((techOffer.aiScoreMarketSize! + techOffer.aiScoreIpMoat! + techOffer.aiScoreTrlTrajectory! + techOffer.aiScoreAtumFit!) / 4) * 10) / 10
+    : null;
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
@@ -159,6 +213,16 @@ export default function TechOfferDetailPage() {
                 {techOffer.qualityTier}
               </span>
             )}
+            {isScored && avgScore !== null && (
+              <span className={`inline-flex items-center h-6 px-2.5 text-xs font-medium rounded border font-mono ${
+                avgScore >= 8 ? 'bg-green-50 text-green-700 border-green-200' :
+                avgScore >= 6 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                avgScore >= 4 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                'bg-red-50 text-red-700 border-red-200'
+              }`}>
+                AI {avgScore}/10
+              </span>
+            )}
           </div>
         </div>
 
@@ -177,7 +241,7 @@ export default function TechOfferDetailPage() {
             )}
 
             {techOffer.useCase && (
-              <div className="bg-white border border-gray-200 rounded-t-none rounded-b-none border-t-0 p-5" style={{ borderRadius: 0 }}>
+              <div className="bg-white border border-gray-200 border-t-0 p-5" style={{ borderRadius: 0 }}>
                 <Section title="Use Case">
                   <p className="text-sm text-gray-700 leading-relaxed">{techOffer.useCase}</p>
                 </Section>
@@ -201,7 +265,7 @@ export default function TechOfferDetailPage() {
             )}
           </div>
 
-          {/* RIGHT — metadata + analysis + linked researcher */}
+          {/* RIGHT — metadata + AI scoring + analysis + linked researcher */}
           <div className="space-y-4">
 
             {/* Tech metadata */}
@@ -212,6 +276,67 @@ export default function TechOfferDetailPage() {
               <Field label="TRL" value={techOffer.trl} mono />
               <Field label="Sector" value={techOffer.sector} />
               <Field label="Likely PI" value={techOffer.likelyPi} />
+            </div>
+
+            {/* AI Scoring */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">AI Scoring</div>
+                <button
+                  onClick={handleScore}
+                  disabled={scoring}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 text-xs font-medium text-white rounded transition disabled:opacity-60"
+                  style={{ backgroundColor: '#F0602C' }}
+                >
+                  {scoring ? (
+                    <>
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Scoring…
+                    </>
+                  ) : isScored ? 'Re-score' : 'Score with AI'}
+                </button>
+              </div>
+
+              {isScored ? (
+                <div className="space-y-3">
+                  {SCORE_DIMENSIONS.map(({ key, scoreField, rationaleField }) => {
+                    const score = techOffer[scoreField];
+                    const rationale = techOffer[rationaleField];
+                    if (score === null) return null;
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-600">{key}</span>
+                        </div>
+                        <ScoreBar score={score} />
+                        {rationale && (
+                          <p className="text-xs text-gray-500 mt-1 leading-relaxed">{rationale}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {techOffer.aiSummary && (
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="text-xs text-gray-500 mb-1">Summary</div>
+                      <p className="text-xs text-gray-700 leading-relaxed">{techOffer.aiSummary}</p>
+                    </div>
+                  )}
+
+                  {techOffer.aiScoredAt && (
+                    <div className="text-xs text-gray-400 font-mono pt-1">
+                      Scored {new Date(techOffer.aiScoredAt).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">
+                  No AI scores yet. Click &ldquo;Score with AI&rdquo; to generate structured scores across Market Size, IP Moat, TRL Trajectory, and ATUM Fit.
+                </p>
+              )}
             </div>
 
             {/* ATUM Analysis */}
@@ -284,11 +409,16 @@ export default function TechOfferDetailPage() {
                       <div className="font-mono text-sm text-gray-900">{new Intl.NumberFormat().format(linkedResearcher.citations)}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-gray-500">Status</div>
-                      <div className={`text-xs mt-0.5 flex items-center gap-1 ${linkedResearcher.contacted ? 'text-green-600' : 'text-gray-400'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${linkedResearcher.contacted ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        {linkedResearcher.contacted ? 'Contacted' : 'Pending'}
-                      </div>
+                      <div className="text-xs text-gray-500">Stage</div>
+                      {(() => {
+                        const s = getStage(linkedResearcher.stage);
+                        return (
+                          <span className={`inline-flex items-center gap-1 text-xs mt-0.5 ${s.color} px-1.5 py-0.5 rounded`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <Link href={`/researchers/${linkedResearcher.id}`} className="text-xs text-[#F0602C] hover:underline mt-2 inline-block">

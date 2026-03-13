@@ -61,6 +61,18 @@ model TechOffer {
   qualityTier          String?  @map("quality_tier")
   notes                String?
 
+  // AI Scoring (gpt-4o-mini)
+  aiScoreMarketSize       Int?     @map("ai_score_market_size")
+  aiScoreIpMoat           Int?     @map("ai_score_ip_moat")
+  aiScoreTrlTrajectory    Int?     @map("ai_score_trl_trajectory")
+  aiScoreAtumFit          Int?     @map("ai_score_atum_fit")
+  aiRationaleMarketSize   String?  @map("ai_rationale_market_size")
+  aiRationaleIpMoat       String?  @map("ai_rationale_ip_moat")
+  aiRationaleTrlTrajectory String? @map("ai_rationale_trl_trajectory")
+  aiRationaleAtumFit      String?  @map("ai_rationale_atum_fit")
+  aiSummary               String?  @map("ai_summary")
+  aiScoredAt              DateTime? @map("ai_scored_at")
+
   // Provenance
   source               String   @default("excel_import")
 

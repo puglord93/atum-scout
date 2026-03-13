@@ -152,6 +152,17 @@ export async function loadTechOffersFromExcel(filePath: string): Promise<Omit<Te
         qualityTier: qualityTier || null,
         notes: safeStr(row['Notes'] || ''),
         source: 'excel_import',
+        // AI scoring — null until scored
+        aiScoreMarketSize: null,
+        aiScoreIpMoat: null,
+        aiScoreTrlTrajectory: null,
+        aiScoreAtumFit: null,
+        aiRationaleMarketSize: null,
+        aiRationaleIpMoat: null,
+        aiRationaleTrlTrajectory: null,
+        aiRationaleAtumFit: null,
+        aiSummary: null,
+        aiScoredAt: null,
       });
     }
   }

@@ -38,8 +38,11 @@
 - [x] Pipeline funnel on dashboard — stage counts with color badges
 - [x] Stage filter on researchers table
 
+## ✅ Completed (continued)
+
+- [x] AI tech offer scoring — structured GPT scores (Market Size, IP Moat, TRL Trajectory, ATUM Fit 1-10), rationale per dimension, summary, persisted to DB, color-coded score bars on detail page, avg score badge in header
+
 ## ❌ Up Next
-- [ ] AI tech offer scoring — structured GPT scores (Market Size, IP Moat, TRL Trajectory, ATUM Fit)
 - [ ] Responsive design — mobile/tablet breakpoints, horizontal table scroll
 - [ ] Performance optimization — SWR caching (5-min stale time for list queries)
 - [ ] Bulk actions — multi-select rows, batch mark as contacted
