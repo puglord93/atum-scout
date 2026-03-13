@@ -64,3 +64,49 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const {
+      fullName, email, affiliation, tier = 'C',
+      hIndex = 0, citations = 0, cScore = 0, globalRank = null,
+      domainTags = null, subfield = null, category = 'Manual',
+      noteOnResearch = null, origin = 'Manual', source = 'manual',
+    } = body;
+
+    if (!fullName?.trim() || !affiliation?.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'fullName and affiliation are required' },
+        { status: 400 }
+      );
+    }
+
+    const researcher = await prisma.researcher.create({
+      data: {
+        fullName: fullName.trim(),
+        email: email?.trim() || null,
+        affiliation: affiliation.trim(),
+        tier,
+        hIndex: parseInt(hIndex) || 0,
+        citations: parseInt(citations) || 0,
+        cScore: parseFloat(cScore) || 0,
+        globalRank: globalRank ? parseInt(globalRank) : null,
+        domainTags: domainTags || null,
+        subfield: subfield || null,
+        category,
+        noteOnResearch: noteOnResearch || null,
+        origin,
+        source,
+      },
+    });
+
+    return NextResponse.json({ success: true, data: researcher });
+  } catch (error) {
+    console.error('Error creating researcher:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' },
+      { status: 500 }
+    );
+  }
+}

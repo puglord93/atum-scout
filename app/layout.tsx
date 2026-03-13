@@ -54,6 +54,18 @@ export default function RootLayout({
                   Tech Offers
                 </Link>
               </div>
+              <div className="ml-auto">
+                <Link
+                  href="/ingest"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded transition"
+                  style={{ backgroundColor: '#F0602C' }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add
+                </Link>
+              </div>
             </div>
           </div>
         </nav>

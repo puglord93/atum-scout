@@ -31,6 +31,9 @@ model Researcher {
   contactDate       String?  @map("contact_date")
   contactedBy       String?  @map("contacted_by")
 
+  // Provenance
+  source            String   @default("excel_import")
+
   // Timestamps
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -54,6 +57,9 @@ model TechOffer {
   likelyPi             String?  @map("likely_pi")
   qualityTier          String?  @map("quality_tier")
   notes                String?
+
+  // Provenance
+  source               String   @default("excel_import")
 
   // Timestamps
   createdAt            DateTime @default(now()) @map("created_at")

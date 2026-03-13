@@ -18,8 +18,24 @@
 - [x] Pagination — 50 rows/page on both table pages, smart ellipsis page buttons, resets on filter change
 - [x] Dashboard — Overview page with stat cards, tier breakdown, VP breakdown, recently contacted, top Tier A
 
+## ✅ Completed (continued)
+
+- [x] Detail page redesign — researcher and tech offer pages rebuilt as single-scroll 2-col layouts (no tab-clicking for core info)
+- [x] Fix Next.js 15 params bug — all /api/researchers/[id] routes now correctly await params
+- [x] Ingest feature — `/ingest` page with 3 modes:
+  - URL ingest: paste arXiv/DOI/any URL → Semantic Scholar API first, GPT fallback → pre-filled review form → saves TechOffer + optional Researcher
+  - Manual tech offer: free-form add with all fields
+  - Manual researcher: free-form add with Semantic Scholar enrichment (auto-fill h-index, citations, affiliation)
+- [x] `source` provenance field added to both Researcher and TechOffer models (excel_import / manual / url_ingest)
+- [x] `POST /api/researchers` and `POST /api/tech-offers` — create endpoints
+- [x] `POST /api/ingest` — URL extraction endpoint (Semantic Scholar → GPT-4o fallback)
+- [x] `GET /api/enrich/researcher` — Semantic Scholar author lookup
+- [x] "Add" button in nav → /ingest
+
 ## ❌ Up Next
 
+- [ ] Scouting pipeline / CRM stages — Identified → Reached Out → Replied → Meeting → POC → Partner
+- [ ] AI tech offer scoring — structured GPT scores (Market Size, IP Moat, TRL Trajectory, ATUM Fit)
 - [ ] Responsive design — mobile/tablet breakpoints, horizontal table scroll
 - [ ] Performance optimization — SWR caching (5-min stale time for list queries)
 - [ ] Bulk actions — multi-select rows, batch mark as contacted

@@ -58,3 +58,55 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const {
+      technology, institution, trl = null, sector = null,
+      venturePotential = null, description = null, useCase = null,
+      vsExisting = null, commercializationPath = null, atumPursue = null,
+      likelyPi = null, qualityTier = null, notes = null,
+      source = 'manual',
+    } = body;
+
+    if (!technology?.trim() || !institution?.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'technology and institution are required' },
+        { status: 400 }
+      );
+    }
+
+    // Auto-generate a unique techId
+    const prefix = source === 'url_ingest' ? 'INGEST' : 'MANUAL';
+    const techId = `${prefix}_${Date.now()}`;
+
+    const techOffer = await prisma.techOffer.create({
+      data: {
+        techId,
+        technology: technology.trim(),
+        institution: institution.trim(),
+        trl: trl || null,
+        sector: sector || null,
+        venturePotential: venturePotential || null,
+        description: description || null,
+        useCase: useCase || null,
+        vsExisting: vsExisting || null,
+        commercializationPath: commercializationPath || null,
+        atumPursue: atumPursue || null,
+        likelyPi: likelyPi || null,
+        qualityTier: qualityTier || null,
+        notes: notes || null,
+        source,
+      },
+    });
+
+    return NextResponse.json({ success: true, data: techOffer });
+  } catch (error) {
+    console.error('Error creating tech offer:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' },
+      { status: 500 }
+    );
+  }
+}
