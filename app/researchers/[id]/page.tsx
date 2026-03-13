@@ -1,13 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 type Researcher = {
   id: number;
@@ -41,71 +36,81 @@ type TechOffer = {
   likelyPi: string | null;
 };
 
+const TIER_COLORS: Record<string, string> = {
+  A: 'bg-[#F0602C] text-white',
+  B: 'bg-blue-100 text-blue-700',
+  C: 'bg-yellow-100 text-yellow-700',
+  D: 'bg-gray-100 text-gray-600',
+};
+
+function Field({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div className="py-2.5 border-b border-gray-100 last:border-0 flex gap-4">
+      <span className="text-xs text-gray-500 w-32 flex-shrink-0 pt-0.5">{label}</span>
+      <span className={`text-sm text-gray-900 flex-1 ${mono ? 'font-mono' : ''}`}>{value || '—'}</span>
+    </div>
+  );
+}
+
 export default function ResearcherDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const [researcher, setResearcher] = useState<Researcher | null>(null);
   const [linkedTech, setLinkedTech] = useState<TechOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Contact tracking form state
   const [contactDate, setContactDate] = useState('');
   const [contactedBy, setContactedBy] = useState('');
-
-  // AI outreach state
   const [knowPersonally, setKnowPersonally] = useState(false);
   const [tone, setTone] = useState<'formal' | 'casual'>('formal');
   const [generating, setGenerating] = useState(false);
   const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [copied, setCopied] = useState<'subject' | 'body' | null>(null);
 
   useEffect(() => {
     fetchResearcher();
-    fetchLinkedTech();
   }, [params.id]);
 
   const fetchResearcher = async () => {
     try {
-      const response = await fetch(`/api/researchers/${params.id}`);
-      const data = await response.json();
+      const res = await fetch(`/api/researchers/${params.id}`);
+      const data = await res.json();
       if (data.success) {
         setResearcher(data.data);
         setContactDate(data.data.contactDate || '');
         setContactedBy(data.data.contactedBy || '');
+        fetchLinkedTech(data.data.fullName);
       }
-    } catch (error) {
-      console.error('Error fetching researcher:', error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchLinkedTech = async () => {
+  const fetchLinkedTech = async (fullName: string) => {
     try {
-      // Fetch all tech offers and filter by fuzzy match on client side for now
-      const response = await fetch('/api/tech-offers');
-      const data = await response.json();
-      if (data.success && researcher) {
-        // Simple fuzzy matching - check if researcher name is in likelyPi
+      const res = await fetch('/api/tech-offers');
+      const data = await res.json();
+      if (data.success) {
         const matches = data.data.filter((tech: TechOffer) => {
           if (!tech.likelyPi) return false;
-          const normalizedPi = tech.likelyPi.toLowerCase();
-          const normalizedName = researcher.fullName.toLowerCase();
-          return normalizedPi.includes(normalizedName) || normalizedName.includes(normalizedPi);
+          const pi = tech.likelyPi.toLowerCase();
+          const name = fullName.toLowerCase();
+          return pi.includes(name) || name.includes(pi);
         });
         setLinkedTech(matches);
       }
-    } catch (error) {
-      console.error('Error fetching linked tech:', error);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleContactUpdate = async (contacted: boolean) => {
     if (!researcher) return;
-
     setSaving(true);
     try {
-      const response = await fetch(`/api/researchers/${params.id}`, {
+      const res = await fetch(`/api/researchers/${params.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -114,393 +119,315 @@ export default function ResearcherDetailPage() {
           contactedBy: contacted ? contactedBy : null,
         }),
       });
-
-      const data = await response.json();
-      if (data.success) {
-        setResearcher(data.data);
-      }
-    } catch (error) {
-      console.error('Error updating contact status:', error);
+      const data = await res.json();
+      if (data.success) setResearcher(data.data);
+    } catch (e) {
+      console.error(e);
     } finally {
       setSaving(false);
     }
   };
 
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case 'A': return 'bg-green-100 text-green-800 border-green-300';
-      case 'B': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'C': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'D': return 'bg-gray-100 text-gray-800 border-gray-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat().format(num);
-  };
-
-  const generateOutreachEmail = async () => {
-    if (!researcher) return;
-
+  const generateEmail = async () => {
     setGenerating(true);
     try {
-      const response = await fetch(`/api/researchers/${params.id}/outreach`, {
+      const res = await fetch(`/api/researchers/${params.id}/outreach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ knowPersonally, tone }),
       });
-
-      const data = await response.json();
-      if (data.success) {
-        setGeneratedEmail(data.data);
-      } else {
-        alert('Failed to generate email: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error generating outreach email:', error);
-      alert('Failed to generate email');
+      const data = await res.json();
+      if (data.success) setGeneratedEmail(data.data);
+    } catch (e) {
+      console.error(e);
     } finally {
       setGenerating(false);
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyText = (text: string, field: 'subject' | 'body') => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    setCopied(field);
+    setTimeout(() => setCopied(null), 1500);
   };
+
+  const formatNumber = (n: number) => new Intl.NumberFormat().format(n);
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <span className="text-sm text-gray-400">Loading...</span>
       </div>
     );
   }
 
   if (!researcher) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-gray-500">Researcher not found</p>
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <span className="text-sm text-gray-400">Researcher not found</span>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
-      {/* Header */}
-      <div className="mb-6">
-        <Link href="/researchers" className="text-sm text-gray-600 hover:text-primary mb-2 inline-block">
-          ← Back to Researchers
+    <div className="min-h-screen bg-[#fafafa]">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+
+        {/* Back */}
+        <Link href="/researchers" className="text-xs text-gray-500 hover:text-gray-900 transition mb-6 inline-block">
+          ← Researchers
         </Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              {researcher.fullName}
-            </h1>
-            <p className="text-lg text-gray-600">{researcher.affiliation}</p>
+
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-1">{researcher.fullName}</h1>
+              <div className="flex items-center gap-3 text-sm text-gray-500 flex-wrap">
+                <span>{researcher.affiliation}</span>
+                {researcher.email && (
+                  <>
+                    <span>·</span>
+                    <a href={`mailto:${researcher.email}`} className="text-[#F0602C] hover:underline font-mono text-xs">
+                      {researcher.email}
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className={`inline-flex items-center justify-center w-9 h-9 rounded text-sm font-semibold flex-shrink-0 ${TIER_COLORS[researcher.tier] ?? 'bg-gray-100 text-gray-600'}`}>
+              {researcher.tier}
+            </div>
           </div>
-          <Badge variant="outline" className={`${getTierColor(researcher.tier)} text-lg px-4 py-2`}>
-            Tier {researcher.tier}
-          </Badge>
+
+          {/* Metrics strip */}
+          <div className="flex gap-6 mt-5 pt-5 border-t border-gray-200">
+            {[
+              { label: 'h-index',     value: researcher.hIndex },
+              { label: 'Citations',   value: formatNumber(researcher.citations) },
+              { label: 'C-Score',     value: researcher.cScore.toFixed(3) },
+              { label: 'Global Rank', value: researcher.globalRank ? `#${formatNumber(researcher.globalRank)}` : '—' },
+            ].map(m => (
+              <div key={m.label}>
+                <div className="text-xs text-gray-500 mb-0.5">{m.label}</div>
+                <div className="font-mono text-lg font-semibold text-gray-900">{m.value}</div>
+              </div>
+            ))}
+            <div className="ml-auto flex items-end">
+              <span className={`inline-flex items-center gap-1.5 text-xs ${researcher.contacted ? 'text-green-700' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${researcher.contacted ? 'bg-green-500' : 'bg-gray-300'}`} />
+                {researcher.contacted
+                  ? `Contacted${researcher.contactDate ? ` · ${new Date(researcher.contactDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`
+                  : 'Not contacted'}
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">📋 Overview</TabsTrigger>
-          <TabsTrigger value="tech">🔗 Linked Tech ({linkedTech.length})</TabsTrigger>
-          <TabsTrigger value="contact">📝 Contact & Outreach</TabsTrigger>
-        </TabsList>
+        {/* 2-col body */}
+        <div className="grid grid-cols-3 gap-6">
 
-        {/* Tab 1: Overview */}
-        <TabsContent value="overview" className="space-y-6">
-          {/* Contact Info */}
-          {researcher.email && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Email:</span>{' '}
-                  <a href={`mailto:${researcher.email}`} className="text-primary hover:underline">
-                    {researcher.email}
-                  </a>
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          {/* LEFT — Research profile + Linked tech */}
+          <div className="col-span-2 space-y-4">
 
-          {/* Metrics */}
-          <div className="grid grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-gray-600">h-index</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{researcher.hIndex}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-gray-600">Citations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{formatNumber(researcher.citations)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-gray-600">C-Score</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{researcher.cScore.toFixed(3)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-gray-600">Global Rank</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{researcher.globalRank || 'N/A'}</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Research Profile */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Research Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Domain</p>
-                <p className="text-gray-900">{researcher.domainTags || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Subfield</p>
-                <p className="text-gray-900">{researcher.subfield || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Category</p>
-                <p className="text-gray-900">{researcher.category}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Origin</p>
-                <p className="text-gray-900">{researcher.origin}</p>
-              </div>
+            {/* Research Profile */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Research Profile</div>
+              <Field label="Domain" value={researcher.domainTags} />
+              <Field label="Subfield" value={researcher.subfield} />
+              <Field label="Category" value={researcher.category} />
+              <Field label="Origin" value={researcher.origin} />
               {researcher.noteOnResearch && (
-                <div className="col-span-2">
-                  <p className="text-sm font-semibold text-gray-600 mb-1">Research Notes</p>
-                  <p className="text-gray-900">{researcher.noteOnResearch}</p>
-                </div>
+                <Field label="Research Notes" value={researcher.noteOnResearch} />
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
 
-        {/* Tab 2: Linked Tech */}
-        <TabsContent value="tech">
-          <Card>
-            <CardHeader>
-              <CardTitle>Linked Technology Offers</CardTitle>
-            </CardHeader>
-            <CardContent>
+            {/* Linked Tech Offers */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Linked Tech Offers</div>
+                {linkedTech.length > 0 && (
+                  <span className="text-xs font-mono text-gray-400">{linkedTech.length}</span>
+                )}
+              </div>
               {linkedTech.length === 0 ? (
-                <p className="text-gray-500 py-4">No linked technology offers found.</p>
+                <p className="text-sm text-gray-400">No linked technology offers found</p>
               ) : (
-                <div className="space-y-4">
-                  {linkedTech.map((tech) => (
-                    <div key={tech.id} className="border rounded-lg p-4 hover:bg-gray-50 transition">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-lg">{tech.technology}</h3>
+                <div className="space-y-3">
+                  {linkedTech.map(tech => (
+                    <div key={tech.id} className="border border-gray-100 rounded-lg p-3 hover:border-gray-200 transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link
+                          href={`/tech-offers/${tech.id}`}
+                          className="text-sm font-medium text-gray-900 hover:text-[#F0602C] transition leading-snug"
+                        >
+                          {tech.technology}
+                        </Link>
                         {tech.venturePotential && (
-                          <Badge>{tech.venturePotential}</Badge>
+                          <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${
+                            tech.venturePotential.toLowerCase().includes('high')
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {tech.venturePotential.split(/[\s.]/)[0]}
+                          </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {tech.institution} {tech.trl && `• TRL ${tech.trl}`}
-                      </p>
-                      {tech.description && (
-                        <p className="text-gray-700 text-sm">{tech.description}</p>
-                      )}
+                      <div className="flex gap-3 mt-1.5 text-xs text-gray-500">
+                        <span>{tech.institution}</span>
+                        {tech.trl && <span>TRL {tech.trl}</span>}
+                        {tech.sector && <span>{tech.sector}</span>}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </div>
 
-        {/* Tab 3: Contact & Outreach */}
-        <TabsContent value="contact">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Tracking</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          {/* RIGHT — Contact panel + AI Outreach */}
+          <div className="space-y-4">
+
+            {/* Contact Status */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Contact Tracking</div>
+
               {researcher.contacted ? (
-                <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-green-800 font-semibold mb-2">✅ Contacted</p>
-                    <div className="text-sm text-green-700">
-                      <p><span className="font-medium">Date:</span> {researcher.contactDate || 'Not specified'}</p>
-                      <p><span className="font-medium">By:</span> {researcher.contactedBy || 'Not specified'}</p>
+                <div className="space-y-3">
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Date</span>
+                      <span className="font-medium text-gray-900">
+                        {researcher.contactDate
+                          ? new Date(researcher.contactDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">By</span>
+                      <span className="font-medium text-gray-900">{researcher.contactedBy || '—'}</span>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
+                  <button
                     onClick={() => handleContactUpdate(false)}
                     disabled={saving}
+                    className="w-full h-8 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40"
                   >
-                    ↩️ Mark as Not Contacted
-                  </Button>
+                    {saving ? 'Saving…' : 'Mark as not contacted'}
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Contact Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={contactDate}
-                        onChange={(e) => setContactDate(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Contacted By
-                      </label>
-                      <Input
-                        type="text"
-                        value={contactedBy}
-                        onChange={(e) => setContactedBy(e.target.value)}
-                        placeholder="Your name"
-                      />
-                    </div>
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={contactDate}
+                      onChange={e => setContactDate(e.target.value)}
+                      className="w-full h-8 px-2.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white text-gray-900"
+                    />
                   </div>
-                  <Button
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Contacted by</label>
+                    <input
+                      type="text"
+                      value={contactedBy}
+                      onChange={e => setContactedBy(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full h-8 px-2.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white text-gray-900 placeholder-gray-400"
+                    />
+                  </div>
+                  <button
                     onClick={() => handleContactUpdate(true)}
                     disabled={saving || !contactDate || !contactedBy}
+                    className="w-full h-8 text-xs rounded text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#F0602C' }}
-                    className="text-white hover:opacity-90"
                   >
-                    {saving ? 'Saving...' : 'Mark as Contacted'}
-                  </Button>
+                    {saving ? 'Saving…' : 'Mark as contacted'}
+                  </button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* AI Outreach Email Generation */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>AI Outreach Email Generation</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Settings */}
-              <div className="space-y-3">
+            {/* AI Outreach */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">AI Outreach Email</div>
+
+              <div className="space-y-2.5 mb-3">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     id="knowPersonally"
                     checked={knowPersonally}
-                    onChange={(e) => setKnowPersonally(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    onChange={e => setKnowPersonally(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-[#F0602C]"
                   />
-                  <label htmlFor="knowPersonally" className="text-sm text-gray-700">
-                    I know this researcher personally
-                  </label>
+                  <label htmlFor="knowPersonally" className="text-xs text-gray-600">Know personally</label>
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Tone</label>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
+                <div className="flex gap-3">
+                  {(['formal', 'casual'] as const).map(t => (
+                    <label key={t} className="flex items-center gap-1.5 cursor-pointer">
                       <input
                         type="radio"
-                        id="formal"
                         name="tone"
-                        value="formal"
-                        checked={tone === 'formal'}
-                        onChange={() => setTone('formal')}
-                        className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                        value={t}
+                        checked={tone === t}
+                        onChange={() => setTone(t)}
+                        className="w-3.5 h-3.5 border-gray-300 text-[#F0602C]"
                       />
-                      <label htmlFor="formal" className="text-sm text-gray-700">
-                        Formal
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        id="casual"
-                        name="tone"
-                        value="casual"
-                        checked={tone === 'casual'}
-                        onChange={() => setTone('casual')}
-                        className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <label htmlFor="casual" className="text-sm text-gray-700">
-                        Casual
-                      </label>
-                    </div>
-                  </div>
+                      <span className="text-xs text-gray-600 capitalize">{t}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              <Button
-                onClick={generateOutreachEmail}
+              <button
+                onClick={generateEmail}
                 disabled={generating}
+                className="w-full h-8 text-xs rounded text-white transition disabled:opacity-60"
                 style={{ backgroundColor: '#F0602C' }}
-                className="text-white hover:opacity-90"
               >
-                {generating ? 'Generating...' : '✨ Generate Email'}
-              </Button>
+                {generating ? 'Generating…' : 'Generate email'}
+              </button>
 
-              {/* Generated Email */}
               {generatedEmail && (
-                <div className="space-y-4 pt-4 border-t">
+                <div className="mt-4 space-y-3 pt-4 border-t border-gray-100">
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Subject</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Subject</span>
                       <button
-                        onClick={() => copyToClipboard(generatedEmail.subject)}
-                        className="text-xs text-primary hover:underline"
+                        onClick={() => copyText(generatedEmail.subject, 'subject')}
+                        className="text-xs text-gray-400 hover:text-gray-700 transition"
                       >
-                        Copy
+                        {copied === 'subject' ? 'Copied!' : 'Copy'}
                       </button>
                     </div>
-                    <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                      <p className="text-sm text-gray-900 font-medium">{generatedEmail.subject}</p>
+                    <div className="bg-gray-50 border border-gray-100 rounded px-3 py-2">
+                      <p className="text-xs text-gray-900 font-medium">{generatedEmail.subject}</p>
                     </div>
                   </div>
-
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Body</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Body</span>
                       <button
-                        onClick={() => copyToClipboard(generatedEmail.body)}
-                        className="text-xs text-primary hover:underline"
+                        onClick={() => copyText(generatedEmail.body, 'body')}
+                        className="text-xs text-gray-400 hover:text-gray-700 transition"
                       >
-                        Copy
+                        {copied === 'body' ? 'Copied!' : 'Copy'}
                       </button>
                     </div>
-                    <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">
-                        {generatedEmail.body}
-                      </p>
+                    <div className="bg-gray-50 border border-gray-100 rounded px-3 py-2">
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{generatedEmail.body}</p>
                     </div>
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

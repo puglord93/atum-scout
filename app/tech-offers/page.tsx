@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+
+const PAGE_SIZE = 50;
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
@@ -10,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { exportToCsv } from '@/lib/export';
 
 type TechOffer = {
   id: number;
@@ -38,6 +41,7 @@ export default function TechOffersPage() {
   const [sectorFilter, setSectorFilter] = useState<string>('all');
   const [venturePotentialFilter, setVenturePotentialFilter] = useState<string>('all');
   const [trlFilter, setTrlFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
 
   const uniqueInstitutions = Array.from(new Set(allTechOffers.map(t => t.institution))).sort();
   const uniqueSectors = Array.from(new Set(allTechOffers.map(t => t.sector).filter(Boolean))).sort() as string[];
@@ -139,6 +143,7 @@ export default function TechOffersPage() {
       );
     }
     setTechOffers(filtered);
+    setPage(1); // reset to first page on filter change
   };
 
   const resetFilters = () => {
@@ -147,6 +152,34 @@ export default function TechOffersPage() {
     setSectorFilter('all');
     setVenturePotentialFilter('all');
     setTrlFilter('all');
+    setPage(1);
+  };
+
+  const totalPages = Math.ceil(techOffers.length / PAGE_SIZE);
+  const pagedTechOffers = useMemo(
+    () => techOffers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [techOffers, page]
+  );
+
+  const handleExport = () => {
+    const columns = [
+      { key: 'techId',                label: 'Tech ID' },
+      { key: 'technology',            label: 'Technology' },
+      { key: 'institution',           label: 'Institution' },
+      { key: 'trl',                   label: 'TRL' },
+      { key: 'sector',                label: 'Sector' },
+      { key: 'venturePotential',      label: 'Venture Potential' },
+      { key: 'description',           label: 'Description' },
+      { key: 'useCase',               label: 'Use Case' },
+      { key: 'vsExisting',            label: 'VS Existing' },
+      { key: 'commercializationPath', label: 'Commercialization Path' },
+      { key: 'atumPursue',            label: 'ATUM Pursue' },
+      { key: 'likelyPi',              label: 'Likely PI' },
+      { key: 'qualityTier',           label: 'Quality Tier' },
+      { key: 'notes',                 label: 'Notes' },
+    ];
+    const today = new Date().toISOString().slice(0, 10);
+    exportToCsv(techOffers, columns, `atum-tech-offers-${today}.csv`);
   };
 
   const activeFilters = institutionFilter !== 'all' || sectorFilter !== 'all' || venturePotentialFilter !== 'all' || trlFilter !== 'all' || search;
@@ -255,6 +288,16 @@ export default function TechOffersPage() {
                   Clear filters
                 </button>
               )}
+              <button
+                onClick={handleExport}
+                disabled={techOffers.length === 0}
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export CSV
+              </button>
             </div>
           </div>
         </div>
@@ -282,7 +325,7 @@ export default function TechOffersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {techOffers.map((t) => (
+                {pagedTechOffers.map((t) => (
                   <tr key={t.id} className="group hover:bg-gray-50 transition-colors align-top">
                     <td className="py-4 px-4 text-sm text-gray-600">{t.institution}</td>
                     <td className="py-4 px-4">
@@ -314,6 +357,55 @@ export default function TechOffersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && techOffers.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-xs text-gray-500 font-mono">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, techOffers.length)} of {techOffers.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="h-8 px-3 text-xs border border-gray-200 rounded bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) =>
+                  p === '…' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={`h-8 w-8 text-xs border rounded transition ${
+                        page === p
+                          ? 'border-gray-900 bg-gray-900 text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="h-8 px-3 text-xs border border-gray-200 rounded bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
           </div>
         )}
       </div>
