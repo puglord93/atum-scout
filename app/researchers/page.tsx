@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { exportToCsv } from '@/lib/export';
+import { PIPELINE_STAGES, getStage } from '@/lib/stages';
 
 const PAGE_SIZE = 50;
 
@@ -32,6 +33,7 @@ type Researcher = {
   contacted: boolean;
   contactDate: string | null;
   contactedBy: string | null;
+  stage: string;
 };
 
 export default function ResearchersPage() {
@@ -42,30 +44,27 @@ export default function ResearchersPage() {
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [affiliationFilter, setAffiliationFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [stageFilter, setStageFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
 
   const uniqueAffiliations = Array.from(new Set(allResearchers.map(r => r.affiliation))).sort();
   const uniqueCategories = Array.from(new Set(allResearchers.map(r => r.category))).sort();
 
-  useEffect(() => {
-    fetchResearchers();
-  }, []);
+  useEffect(() => { fetchResearchers(); }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [search, tierFilter, affiliationFilter, categoryFilter, allResearchers]);
+  useEffect(() => { applyFilters(); }, [search, tierFilter, affiliationFilter, categoryFilter, stageFilter, allResearchers]);
 
   const fetchResearchers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/researchers`);
-      const data = await response.json();
+      const res = await fetch('/api/researchers');
+      const data = await res.json();
       if (data.success) {
         setAllResearchers(data.data);
         setResearchers(data.data);
       }
-    } catch (error) {
-      console.error('Error fetching researchers:', error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -73,9 +72,10 @@ export default function ResearchersPage() {
 
   const applyFilters = () => {
     let filtered = [...allResearchers];
-    if (tierFilter !== 'all') filtered = filtered.filter(r => r.tier === tierFilter);
+    if (tierFilter !== 'all')        filtered = filtered.filter(r => r.tier === tierFilter);
     if (affiliationFilter !== 'all') filtered = filtered.filter(r => r.affiliation === affiliationFilter);
-    if (categoryFilter !== 'all') filtered = filtered.filter(r => r.category === categoryFilter);
+    if (categoryFilter !== 'all')    filtered = filtered.filter(r => r.category === categoryFilter);
+    if (stageFilter !== 'all')       filtered = filtered.filter(r => r.stage === stageFilter);
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter(r =>
@@ -86,15 +86,12 @@ export default function ResearchersPage() {
       );
     }
     setResearchers(filtered);
-    setPage(1); // reset to first page on filter change
+    setPage(1);
   };
 
   const resetFilters = () => {
-    setSearch('');
-    setTierFilter('all');
-    setAffiliationFilter('all');
-    setCategoryFilter('all');
-    setPage(1);
+    setSearch(''); setTierFilter('all'); setAffiliationFilter('all');
+    setCategoryFilter('all'); setStageFilter('all'); setPage(1);
   };
 
   const totalPages = Math.ceil(researchers.length / PAGE_SIZE);
@@ -106,6 +103,7 @@ export default function ResearchersPage() {
   const handleExport = () => {
     const columns = [
       { key: 'tier',           label: 'Tier' },
+      { key: 'stage',          label: 'Stage' },
       { key: 'fullName',       label: 'Name' },
       { key: 'email',          label: 'Email' },
       { key: 'affiliation',    label: 'Affiliation' },
@@ -117,19 +115,16 @@ export default function ResearchersPage() {
       { key: 'subfield',       label: 'Subfield' },
       { key: 'category',       label: 'Category' },
       { key: 'noteOnResearch', label: 'Note on Research' },
-      { key: 'origin',         label: 'Origin' },
-      { key: 'contacted',      label: 'Contacted' },
       { key: 'contactDate',    label: 'Contact Date' },
       { key: 'contactedBy',    label: 'Contacted By' },
     ];
-    const today = new Date().toISOString().slice(0, 10);
-    exportToCsv(researchers, columns, `atum-researchers-${today}.csv`);
+    exportToCsv(researchers, columns, `atum-researchers-${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
-  const formatNumber = (num: number) => new Intl.NumberFormat().format(num);
+  const formatNumber = (n: number) => new Intl.NumberFormat().format(n);
 
   const abbreviateAffiliation = (affiliation: string): string => {
-    const abbreviations: { [key: string]: string } = {
+    const map: Record<string, string> = {
       'National University of Singapore': 'NUS',
       'Nanyang Technological University': 'NTU',
       'Singapore University of Technology and Design': 'SUTD',
@@ -144,24 +139,14 @@ export default function ResearchersPage() {
       'Agency for Science Technology and Research (A*STAR), Singapore': 'A*STAR',
       'Temasek Polytechnic': 'TP',
     };
-
-    // Try exact match first
-    if (abbreviations[affiliation]) {
-      return abbreviations[affiliation];
+    if (map[affiliation]) return map[affiliation];
+    for (const [full, abbr] of Object.entries(map)) {
+      if (affiliation.includes(full)) return abbr;
     }
-
-    // Try partial matches
-    for (const [full, abbr] of Object.entries(abbreviations)) {
-      if (affiliation.includes(full)) {
-        return abbr;
-      }
-    }
-
-    // If no match, return original but truncate if too long
     return affiliation.length > 30 ? affiliation.substring(0, 27) + '...' : affiliation;
   };
 
-  const activeFilters = tierFilter !== 'all' || affiliationFilter !== 'all' || categoryFilter !== 'all' || search;
+  const activeFilters = tierFilter !== 'all' || affiliationFilter !== 'all' || categoryFilter !== 'all' || stageFilter !== 'all' || search;
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
@@ -176,17 +161,16 @@ export default function ResearchersPage() {
 
         {/* Filters Bar */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-5 gap-3 mb-3">
             <div className="col-span-2">
               <Input
                 type="text"
                 placeholder="Search name, affiliation, domain..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 className="h-9 text-sm border-gray-300 focus:border-[#F0602C] focus:ring-[#F0602C]"
               />
             </div>
-
             <Select value={tierFilter} onValueChange={setTierFilter}>
               <SelectTrigger className="h-9 text-sm border-gray-300">
                 <SelectValue placeholder="Tier" />
@@ -199,7 +183,17 @@ export default function ResearchersPage() {
                 <SelectItem value="D">D</SelectItem>
               </SelectContent>
             </Select>
-
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="h-9 text-sm border-gray-300">
+                <SelectValue placeholder="Stage" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stages</SelectItem>
+                {PIPELINE_STAGES.map(s => (
+                  <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={affiliationFilter} onValueChange={setAffiliationFilter}>
               <SelectTrigger className="h-9 text-sm border-gray-300">
                 <SelectValue placeholder="Affiliation" />
@@ -231,10 +225,7 @@ export default function ResearchersPage() {
                 <span className="font-medium text-gray-900">{researchers.length}</span> results
               </span>
               {activeFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="text-sm text-gray-600 hover:text-gray-900 transition"
-                >
+                <button onClick={resetFilters} className="text-sm text-gray-600 hover:text-gray-900 transition">
                   Clear filters
                 </button>
               )}
@@ -266,55 +257,54 @@ export default function ResearchersPage() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-16">Tier</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-80">Name</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-24">Affiliation</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-24">h-index</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-32">Citations</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-56">Domain</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-32">Status</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-14">Tier</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-72">Name</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-20">Affil.</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-20">h-index</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-28">Citations</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide">Domain</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-28">Stage</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pagedResearchers.map((r) => (
-                  <tr key={r.id} className="group hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-semibold ${
-                        r.tier === 'A' ? 'bg-[#F0602C] text-white' :
-                        r.tier === 'B' ? 'bg-blue-100 text-blue-700' :
-                        r.tier === 'C' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
-                        {r.tier}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Link
-                        href={`/researchers/${r.id}`}
-                        className="font-medium text-gray-900 hover:text-[#F0602C] transition-colors block truncate"
-                        title={r.fullName}
-                      >
-                        {r.fullName}
-                      </Link>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600" title={r.affiliation}>
-                      {abbreviateAffiliation(r.affiliation)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-sm text-gray-900">{r.hIndex}</td>
-                    <td className="py-3 px-4 text-right font-mono text-sm text-gray-600">{formatNumber(r.citations)}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600 truncate" title={r.domainTags || ''}>{r.domainTags || '—'}</td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`inline-flex items-center gap-1.5 text-xs whitespace-nowrap ${
-                        r.contacted ? 'text-green-700' : 'text-gray-400'
-                      }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          r.contacted ? 'bg-green-500' : 'bg-gray-300'
-                        }`} />
-                        {r.contacted ? 'Contacted' : 'Not contacted'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {pagedResearchers.map(r => {
+                  const stage = getStage(r.stage);
+                  return (
+                    <tr key={r.id} className="group hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-semibold ${
+                          r.tier === 'A' ? 'bg-[#F0602C] text-white' :
+                          r.tier === 'B' ? 'bg-blue-100 text-blue-700' :
+                          r.tier === 'C' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {r.tier}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Link
+                          href={`/researchers/${r.id}`}
+                          className="font-medium text-gray-900 hover:text-[#F0602C] transition-colors block truncate"
+                          title={r.fullName}
+                        >
+                          {r.fullName}
+                        </Link>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600" title={r.affiliation}>
+                        {abbreviateAffiliation(r.affiliation)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-sm text-gray-900">{r.hIndex}</td>
+                      <td className="py-3 px-4 text-right font-mono text-sm text-gray-600">{formatNumber(r.citations)}</td>
+                      <td className="py-3 px-4 text-sm text-gray-600 truncate" title={r.domainTags || ''}>{r.domainTags || '—'}</td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${stage.color}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${stage.dot}`} />
+                          {stage.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -327,11 +317,8 @@ export default function ResearchersPage() {
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, researchers.length)} of {researchers.length}
             </span>
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="h-8 px-3 text-xs border border-gray-200 rounded bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="h-8 px-3 text-xs border border-gray-200 rounded bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed">
                 ← Prev
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -345,24 +332,14 @@ export default function ResearchersPage() {
                   p === '…' ? (
                     <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400">…</span>
                   ) : (
-                    <button
-                      key={p}
-                      onClick={() => setPage(p as number)}
-                      className={`h-8 w-8 text-xs border rounded transition ${
-                        page === p
-                          ? 'border-gray-900 bg-gray-900 text-white'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900'
-                      }`}
-                    >
+                    <button key={p} onClick={() => setPage(p as number)}
+                      className={`h-8 w-8 text-xs border rounded transition ${page === p ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900'}`}>
                       {p}
                     </button>
                   )
                 )}
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="h-8 px-3 text-xs border border-gray-200 rounded bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="h-8 px-3 text-xs border border-gray-200 rounded bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed">
                 Next →
               </button>
             </div>

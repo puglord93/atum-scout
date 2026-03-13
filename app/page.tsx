@@ -2,23 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PIPELINE_STAGES, getStage } from '@/lib/stages';
 
 type Stats = {
   researchers: {
     total: number;
-    contacted: number;
-    notContacted: number;
     byTier: Record<string, number>;
+    byStage: Record<string, number>;
   };
   techOffers: {
     total: number;
     byVenturePotential: Record<string, number>;
   };
-  recentlyContacted: {
+  recentlyActive: {
     id: number;
     fullName: string;
     affiliation: string;
     tier: string;
+    stage: string;
     contactDate: string | null;
     contactedBy: string | null;
   }[];
@@ -28,7 +29,7 @@ type Stats = {
     affiliation: string;
     hIndex: number;
     domainTags: string | null;
-    contacted: boolean;
+    stage: string;
   }[];
 };
 
@@ -99,9 +100,10 @@ export default function DashboardPage() {
     );
   }
 
-  const { researchers, techOffers, recentlyContacted, topResearchers } = stats;
+  const { researchers, techOffers, recentlyActive, topResearchers } = stats;
+  const activeCount = researchers.total - (researchers.byStage['identified'] ?? 0);
   const contactRate = researchers.total > 0
-    ? Math.round((researchers.contacted / researchers.total) * 100)
+    ? Math.round((activeCount / researchers.total) * 100)
     : 0;
 
   const tierOrder = ['A', 'B', 'C', 'D'];
@@ -135,9 +137,9 @@ export default function DashboardPage() {
           </Link>
 
           <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Contacted</div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">In Pipeline</div>
             <div className="flex items-baseline gap-2 mb-2">
-              <div className="text-3xl font-semibold text-gray-900 font-mono">{researchers.contacted}</div>
+              <div className="text-3xl font-semibold text-gray-900 font-mono">{activeCount}</div>
               <div className="text-sm text-gray-500 font-mono">{contactRate}%</div>
             </div>
             {/* Progress bar */}
@@ -154,6 +156,31 @@ export default function DashboardPage() {
             <div className="text-3xl font-semibold text-gray-900 font-mono mb-1">{techOffers.total}</div>
             <div className="text-xs text-gray-500">from research institutions</div>
           </Link>
+        </div>
+
+        {/* Pipeline Funnel */}
+        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-4">Scouting Pipeline</div>
+          <div className="grid grid-cols-6 gap-3">
+            {PIPELINE_STAGES.map((s) => {
+              const count = researchers.byStage[s.id] ?? 0;
+              const pct = researchers.total > 0 ? Math.round((count / researchers.total) * 100) : 0;
+              return (
+                <Link
+                  key={s.id}
+                  href={`/researchers`}
+                  className="group flex flex-col items-center gap-1.5 p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition"
+                >
+                  <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                    {s.label}
+                  </div>
+                  <div className="font-mono text-2xl font-semibold text-gray-900">{count}</div>
+                  <div className="text-xs text-gray-400 font-mono">{pct}%</div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {/* Two-col: Tier breakdown + Venture Potential */}
@@ -218,35 +245,41 @@ export default function DashboardPage() {
         {/* Two-col: Recently Contacted + Top Tier A */}
         <div className="grid grid-cols-2 gap-4">
 
-          {/* Recently Contacted */}
+          {/* Recently Active */}
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recently Contacted</span>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recently Active</span>
               <Link href="/researchers" className="text-xs text-gray-400 hover:text-[#F0602C] transition">View all →</Link>
             </div>
-            {recentlyContacted.length === 0 ? (
-              <div className="px-5 py-8 text-sm text-gray-400 text-center">No contacts logged yet</div>
+            {recentlyActive.length === 0 ? (
+              <div className="px-5 py-8 text-sm text-gray-400 text-center">No activity yet</div>
             ) : (
               <table className="w-full">
                 <tbody className="divide-y divide-gray-50">
-                  {recentlyContacted.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3">
-                        <Link href={`/researchers/${r.id}`} className="font-medium text-sm text-gray-900 hover:text-[#F0602C] transition-colors block truncate">
-                          {r.fullName}
-                        </Link>
-                        <div className="text-xs text-gray-400 mt-0.5">{abbreviateAffiliation(r.affiliation)}</div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="text-xs text-gray-500 font-mono">
-                          {r.contactDate ? new Date(r.contactDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : '—'}
-                        </div>
-                        {r.contactedBy && (
-                          <div className="text-xs text-gray-400 mt-0.5">{r.contactedBy}</div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {recentlyActive.map((r) => {
+                    const s = getStage(r.stage);
+                    return (
+                      <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3">
+                          <Link href={`/researchers/${r.id}`} className="font-medium text-sm text-gray-900 hover:text-[#F0602C] transition-colors block truncate">
+                            {r.fullName}
+                          </Link>
+                          <div className="text-xs text-gray-400 mt-0.5">{abbreviateAffiliation(r.affiliation)}</div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+                          {r.contactDate && (
+                            <div className="text-xs text-gray-400 mt-1 font-mono">
+                              {new Date(r.contactDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -273,10 +306,15 @@ export default function DashboardPage() {
                       <div className="text-xs text-gray-400 mt-0.5">h-index</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className={`inline-flex items-center gap-1 text-xs ${r.contacted ? 'text-green-600' : 'text-gray-400'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${r.contacted ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        {r.contacted ? 'Contacted' : 'Pending'}
-                      </span>
+                      {(() => {
+                        const s = getStage(r.stage);
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}

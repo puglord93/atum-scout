@@ -6,25 +6,26 @@ export async function GET() {
     const [
       totalResearchers,
       tierCounts,
-      contactedCount,
+      stageCounts,
       totalTechOffers,
-      recentlyContacted,
+      recentlyActive,
       allVenturePotentials,
       topResearchers,
     ] = await Promise.all([
       prisma.researcher.count(),
       prisma.researcher.groupBy({ by: ['tier'], _count: { id: true }, orderBy: { tier: 'asc' } }),
-      prisma.researcher.count({ where: { contacted: true } }),
+      prisma.researcher.groupBy({ by: ['stage'], _count: { id: true } }),
       prisma.techOffer.count(),
       prisma.researcher.findMany({
-        where: { contacted: true },
-        orderBy: { contactDate: 'desc' },
+        where: { stage: { not: 'identified' } },
+        orderBy: { updatedAt: 'desc' },
         take: 5,
         select: {
           id: true,
           fullName: true,
           affiliation: true,
           tier: true,
+          stage: true,
           contactDate: true,
           contactedBy: true,
         },
@@ -40,7 +41,7 @@ export async function GET() {
           affiliation: true,
           hIndex: true,
           domainTags: true,
-          contacted: true,
+          stage: true,
         },
       }),
     ]);
@@ -61,20 +62,24 @@ export async function GET() {
       {} as Record<string, number>
     );
 
+    const stageMap = stageCounts.reduce(
+      (acc, s) => ({ ...acc, [s.stage]: s._count.id }),
+      {} as Record<string, number>
+    );
+
     return NextResponse.json({
       success: true,
       data: {
         researchers: {
           total: totalResearchers,
-          contacted: contactedCount,
-          notContacted: totalResearchers - contactedCount,
           byTier: tierMap,
+          byStage: stageMap,
         },
         techOffers: {
           total: totalTechOffers,
           byVenturePotential: vpCounts,
         },
-        recentlyContacted,
+        recentlyActive,
         topResearchers,
       },
     });

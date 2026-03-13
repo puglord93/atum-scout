@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { PIPELINE_STAGES, getStage, stageIndex } from '@/lib/stages';
 
 type Researcher = {
   id: number;
@@ -22,6 +23,7 @@ type Researcher = {
   contacted: boolean;
   contactDate: string | null;
   contactedBy: string | null;
+  stage: string;
 };
 
 type TechOffer = {
@@ -106,17 +108,20 @@ export default function ResearcherDetailPage() {
     }
   };
 
-  const handleContactUpdate = async (contacted: boolean) => {
+  const handleContactUpdate = async (contacted: boolean, stage?: string) => {
     if (!researcher) return;
     setSaving(true);
+    const newStage = stage ?? researcher.stage;
+    const isContacted = contacted || stageIndex(newStage) >= 1;
     try {
       const res = await fetch(`/api/researchers/${params.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contacted,
-          contactDate: contacted ? contactDate : null,
-          contactedBy: contacted ? contactedBy : null,
+          contacted: isContacted,
+          stage: newStage,
+          contactDate: isContacted ? contactDate : null,
+          contactedBy: isContacted ? contactedBy : null,
         }),
       });
       const data = await res.json();
@@ -200,8 +205,8 @@ export default function ResearcherDetailPage() {
             </div>
           </div>
 
-          {/* Metrics strip */}
-          <div className="flex gap-6 mt-5 pt-5 border-t border-gray-200">
+          {/* Metrics strip + stage */}
+          <div className="flex gap-6 mt-5 pt-5 border-t border-gray-200 items-end">
             {[
               { label: 'h-index',     value: researcher.hIndex },
               { label: 'Citations',   value: formatNumber(researcher.citations) },
@@ -213,13 +218,16 @@ export default function ResearcherDetailPage() {
                 <div className="font-mono text-lg font-semibold text-gray-900">{m.value}</div>
               </div>
             ))}
-            <div className="ml-auto flex items-end">
-              <span className={`inline-flex items-center gap-1.5 text-xs ${researcher.contacted ? 'text-green-700' : 'text-gray-400'}`}>
-                <div className={`w-2 h-2 rounded-full ${researcher.contacted ? 'bg-green-500' : 'bg-gray-300'}`} />
-                {researcher.contacted
-                  ? `Contacted${researcher.contactDate ? ` · ${new Date(researcher.contactDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`
-                  : 'Not contacted'}
-              </span>
+            <div className="ml-auto">
+              {(() => {
+                const s = getStage(researcher.stage);
+                return (
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${s.color}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                    {s.label}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -285,41 +293,54 @@ export default function ResearcherDetailPage() {
             </div>
           </div>
 
-          {/* RIGHT — Contact panel + AI Outreach */}
+          {/* RIGHT — Pipeline + AI Outreach */}
           <div className="space-y-4">
 
-            {/* Contact Status */}
+            {/* Pipeline Stage */}
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Contact Tracking</div>
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-4">Pipeline Stage</div>
 
-              {researcher.contacted ? (
-                <div className="space-y-3">
-                  <div className="text-xs text-gray-600 space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Date</span>
-                      <span className="font-medium text-gray-900">
-                        {researcher.contactDate
-                          ? new Date(researcher.contactDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">By</span>
-                      <span className="font-medium text-gray-900">{researcher.contactedBy || '—'}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleContactUpdate(false)}
-                    disabled={saving}
-                    className="w-full h-8 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40"
-                  >
-                    {saving ? 'Saving…' : 'Mark as not contacted'}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
+              {/* Stage steps */}
+              <div className="space-y-1 mb-4">
+                {PIPELINE_STAGES.map((s, idx) => {
+                  const current = stageIndex(researcher.stage);
+                  const isPast    = idx < current;
+                  const isCurrent = idx === current;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => handleContactUpdate(researcher.contacted, s.id)}
+                      disabled={saving}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-left transition ${
+                        isCurrent
+                          ? `${s.color} font-medium`
+                          : isPast
+                          ? 'text-gray-400 hover:bg-gray-50'
+                          : 'text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        isCurrent ? `border-current ${s.dot} border-0` :
+                        isPast    ? 'border-gray-300 bg-gray-200' :
+                                    'border-gray-200'
+                      }`}>
+                        {(isCurrent || isPast) && (
+                          <svg className={`w-3 h-3 ${isCurrent ? 'text-white' : 'text-gray-400'}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="text-xs">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Contact date / by — only shown once outreach started */}
+              {stageIndex(researcher.stage) >= 1 && (
+                <div className="pt-3 border-t border-gray-100 space-y-2">
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Date</label>
+                    <label className="text-xs text-gray-500 block mb-1">Outreach date</label>
                     <input
                       type="date"
                       value={contactDate}
@@ -328,7 +349,7 @@ export default function ResearcherDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Contacted by</label>
+                    <label className="text-xs text-gray-500 block mb-1">By</label>
                     <input
                       type="text"
                       value={contactedBy}
@@ -338,12 +359,11 @@ export default function ResearcherDetailPage() {
                     />
                   </div>
                   <button
-                    onClick={() => handleContactUpdate(true)}
-                    disabled={saving || !contactDate || !contactedBy}
-                    className="w-full h-8 text-xs rounded text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: '#F0602C' }}
+                    onClick={() => handleContactUpdate(true, researcher.stage)}
+                    disabled={saving}
+                    className="w-full h-8 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40"
                   >
-                    {saving ? 'Saving…' : 'Mark as contacted'}
+                    {saving ? 'Saving…' : 'Save details'}
                   </button>
                 </div>
               )}

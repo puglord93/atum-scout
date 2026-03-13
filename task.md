@@ -32,9 +32,13 @@
 - [x] `GET /api/enrich/researcher` — Semantic Scholar author lookup
 - [x] "Add" button in nav → /ingest
 
-## ❌ Up Next
+## ✅ Completed (continued)
 
-- [ ] Scouting pipeline / CRM stages — Identified → Reached Out → Replied → Meeting → POC → Partner
+- [x] Scouting pipeline / CRM stages — 6-stage stepper on researcher detail page (Identified → Reached Out → Replied → Meeting → POC → Partner)
+- [x] Pipeline funnel on dashboard — stage counts with color badges
+- [x] Stage filter on researchers table
+
+## ❌ Up Next
 - [ ] AI tech offer scoring — structured GPT scores (Market Size, IP Moat, TRL Trajectory, ATUM Fit)
 - [ ] Responsive design — mobile/tablet breakpoints, horizontal table scroll
 - [ ] Performance optimization — SWR caching (5-min stale time for list queries)

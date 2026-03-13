@@ -151,6 +151,7 @@ export async function loadTechOffersFromExcel(filePath: string): Promise<Omit<Te
         likelyPi: likelyPi || null,
         qualityTier: qualityTier || null,
         notes: safeStr(row['Notes'] || ''),
+        source: 'excel_import',
       });
     }
   }
@@ -203,6 +204,8 @@ export async function loadResearchersFromExcel(filePath: string): Promise<Omit<R
       contacted: false,
       contactDate: null,
       contactedBy: null,
+      stage: 'identified',
+      source: 'excel_import',
     });
   }
 
