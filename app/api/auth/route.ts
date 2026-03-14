@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     // Use a fixed token — middleware (Edge Runtime) can't read process.env at runtime
     response.cookies.set('atum_auth', 'atum_access_granted', {
       httpOnly: true,
-      secure: false, // HTTP only — set to true when HTTPS is configured
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
