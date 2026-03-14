@@ -42,8 +42,11 @@
 
 - [x] AI tech offer scoring — structured GPT scores (Market Size, IP Moat, TRL Trajectory, ATUM Fit 1-10), rationale per dimension, summary, persisted to DB, color-coded score bars on detail page, avg score badge in header
 
+## ✅ Completed (continued)
+
+- [x] Notes system — per-researcher activity log with 4 note types (Note/Call/Email/Meeting), optimistic updates, localStorage author persistence, inline compose, delete on hover
+
 ## ❌ Up Next
 - [ ] Responsive design — mobile/tablet breakpoints, horizontal table scroll
 - [ ] Performance optimization — SWR caching (5-min stale time for list queries)
-- [ ] Bulk actions — multi-select rows, batch mark as contacted
-- [ ] Notes system — per-researcher freeform notes log
+- [ ] Bulk actions — multi-select rows, batch mark as contacted/stage update

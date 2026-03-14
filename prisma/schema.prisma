@@ -37,11 +37,26 @@ model Researcher {
   // Provenance
   source            String   @default("excel_import")
 
+  // Activity log
+  activityNotes     ResearcherNote[]
+
   // Timestamps
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("researchers")
+}
+
+model ResearcherNote {
+  id           Int        @id @default(autoincrement())
+  researcherId Int        @map("researcher_id")
+  researcher   Researcher @relation(fields: [researcherId], references: [id], onDelete: Cascade)
+  content      String
+  author       String
+  type         String     @default("note")  // "note" | "call" | "email" | "meeting"
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@map("researcher_notes")
 }
 
 model TechOffer {
