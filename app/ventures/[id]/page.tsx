@@ -137,6 +137,8 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── Add Input Modal ──────────────────────────────────────────────────────────
 
+const FILE_UPLOAD_TYPES = ['deck', 'paper'];
+
 function AddInputModal({
   ventureId,
   onClose,
@@ -155,11 +157,49 @@ function AddInputModal({
   const [label, setLabel] = useState(`Call — ${dateStr}`);
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isFileType = FILE_UPLOAD_TYPES.includes(type);
 
   const updateLabel = (newType: string) => {
     const typeLabel = INPUT_TYPES.find(t => t.value === newType)?.label || 'Note';
     setLabel(`${typeLabel} — ${dateStr}`);
     setType(newType);
+    setContent('');
+    setUploadedFile(null);
+    setExtractError('');
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExtractError('');
+    setExtracting(true);
+    setUploadedFile(file.name);
+    // Auto-update label to filename (without extension)
+    setLabel(file.name.replace(/\.[^/.]+$/, '') + ` — ${dateStr}`);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/extract-text', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success) {
+        setContent(data.text);
+      } else {
+        setExtractError(data.error || 'Extraction failed');
+        setUploadedFile(null);
+      }
+    } catch {
+      setExtractError('Upload failed. Try pasting the content manually.');
+      setUploadedFile(null);
+    } finally {
+      setExtracting(false);
+    }
   };
 
   const save = async (andAnalyze = false) => {
@@ -181,6 +221,8 @@ function AddInputModal({
     }
   };
 
+  const canSave = label.trim() && content.trim() && !extracting;
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg border border-gray-200 w-full max-w-xl shadow-lg">
@@ -194,6 +236,7 @@ function AddInputModal({
         </div>
 
         <div className="p-5 space-y-4">
+          {/* Type */}
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Type</label>
             <select
@@ -207,6 +250,62 @@ function AddInputModal({
             </select>
           </div>
 
+          {/* File upload zone — deck & paper only */}
+          {isFileType && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">File</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.pptx,.ppt,.docx,.doc"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              {!uploadedFile && !extracting ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-200 rounded-lg py-6 flex flex-col items-center gap-2 hover:border-[#F0602C] hover:bg-orange-50/30 transition group"
+                >
+                  <svg className="w-7 h-7 text-gray-300 group-hover:text-[#F0602C] transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span className="text-sm text-gray-500 group-hover:text-gray-700">Click to upload</span>
+                  <span className="text-xs text-gray-400">PDF, PPTX, DOCX supported</span>
+                </button>
+              ) : extracting ? (
+                <div className="w-full border border-gray-200 rounded-lg py-5 flex items-center justify-center gap-2.5">
+                  <svg className="w-4 h-4 animate-spin text-[#F0602C]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span className="text-sm text-gray-500">Extracting text from {uploadedFile}…</span>
+                </div>
+              ) : (
+                <div className="w-full border border-green-200 bg-green-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-gray-700 truncate max-w-[280px]">{uploadedFile}</span>
+                    <span className="text-xs text-gray-400">— text extracted</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setUploadedFile(null); setContent(''); fileInputRef.current?.click(); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0"
+                  >
+                    Replace
+                  </button>
+                </div>
+              )}
+              {extractError && (
+                <p className="text-xs text-red-500 mt-1.5">{extractError}</p>
+              )}
+            </div>
+          )}
+
+          {/* Label */}
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Label</label>
             <input
@@ -217,13 +316,21 @@ function AddInputModal({
             />
           </div>
 
+          {/* Content — textarea for non-file types, or review extracted text */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Content</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                {isFileType && uploadedFile ? 'Extracted Text (review & edit)' : 'Content'}
+              </label>
+              {isFileType && uploadedFile && (
+                <span className="text-xs text-gray-400">{content.length.toLocaleString()} chars</span>
+              )}
+            </div>
             <textarea
               value={content}
               onChange={e => setContent(e.target.value)}
-              rows={8}
-              placeholder="Paste call notes, paper abstract, email thread, or any relevant context..."
+              rows={isFileType && uploadedFile ? 6 : 8}
+              placeholder={isFileType ? 'Upload a file above, or paste content manually…' : 'Paste call notes, email thread, or any relevant context…'}
               className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-[#F0602C] resize-y"
             />
           </div>
@@ -239,14 +346,14 @@ function AddInputModal({
           <div className="flex items-center gap-2">
             <button
               onClick={() => save(false)}
-              disabled={saving || !label.trim() || !content.trim()}
+              disabled={!canSave}
               className="h-9 px-4 text-sm font-medium text-gray-700 border border-gray-300 rounded hover:border-gray-400 transition disabled:opacity-40"
             >
               Save
             </button>
             <button
               onClick={() => save(true)}
-              disabled={saving || !label.trim() || !content.trim()}
+              disabled={saving || !canSave}
               className="h-9 px-4 text-sm font-medium text-white rounded transition disabled:opacity-40 inline-flex items-center gap-1.5"
               style={{ backgroundColor: '#F0602C' }}
             >
