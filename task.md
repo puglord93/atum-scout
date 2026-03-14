@@ -57,11 +57,12 @@
 - [x] Bulk actions — multi-select rows, batch stage update, export selected
 - [x] Responsive design — mobile/tablet breakpoints, hamburger nav, horizontal table scroll, stacked detail layouts
 
+## ✅ Completed (continued)
+
+- [x] HTTPS / SSL — Let's Encrypt cert (sslip.io), secure cookie in production, auto-renews via certbot
+- [x] Deploy script — GitHub Actions: push to main → SSH → git pull → build → pm2 restart (zero manual steps)
+
 ## ❌ Up Next
 
 ### High value
 - [ ] Performance optimization — SWR caching (5-min stale time for list queries)
-
-### Nice to have
-- [ ] Deploy script — git push → auto pull & restart on server (webhook or cron)
-- [ ] HTTPS / SSL — Let's Encrypt cert via certbot, upgrade cookie to secure: true
