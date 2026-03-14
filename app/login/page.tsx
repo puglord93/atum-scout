@@ -41,19 +41,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Top bar — matches app nav style */}
-      <div className="border-b border-gray-200 bg-white">
-        <div className="max-w-[1400px] mx-auto px-6 h-14 flex items-center justify-between">
-          <span className="text-lg font-bold tracking-tight" style={{ color: '#F0602C' }}>
-            ATUM Scout
-          </span>
-          <span className="text-xs font-medium text-gray-400 border border-gray-200 rounded-full px-3 py-1 uppercase tracking-wider">
-            Private Beta
-          </span>
-        </div>
-      </div>
-
+    <div className="min-h-[calc(100vh-56px)] bg-gray-50 flex flex-col">
       {/* Centered card */}
       <div className="flex-1 flex items-center justify-center py-16 px-4">
         <div className="w-full max-w-sm">
