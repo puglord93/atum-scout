@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ success: true });
     response.cookies.set('atum_auth', password, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // HTTP only — set to true when HTTPS is configured
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',

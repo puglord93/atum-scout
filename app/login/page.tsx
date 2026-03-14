@@ -3,11 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const FEATURES = [
-  { icon: '🔬', label: '256 researchers tracked' },
-  { icon: '⚙️', label: '313 tech offers evaluated' },
-  { icon: '🤖', label: 'AI-powered scoring & outreach' },
-];
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
@@ -53,18 +48,8 @@ export default function LoginPage() {
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-gray-900 mb-1">Deep-tech scouting, built for ATUM</h2>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Track researchers, evaluate tech offers, and manage your scouting pipeline — all in one place.
+                Track researchers, evaluate tech offers, and manage scouting pipeline — all in one place.
               </p>
-            </div>
-
-            {/* Feature pills */}
-            <div className="flex flex-col gap-1.5 mb-6">
-              {FEATURES.map(f => (
-                <div key={f.label} className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>{f.icon}</span>
-                  <span>{f.label}</span>
-                </div>
-              ))}
             </div>
 
             <div className="border-t border-gray-100 mb-6" />
