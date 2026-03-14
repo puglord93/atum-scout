@@ -46,7 +46,22 @@
 
 - [x] Notes system — per-researcher activity log with 4 note types (Note/Call/Email/Meeting), optimistic updates, localStorage author persistence, inline compose, delete on hover
 
+## ✅ Completed (continued)
+
+- [x] Postgres migration — SQLite → Neon PostgreSQL (ap-southeast-1), single clean migration
+- [x] Oracle Cloud deployment — Ubuntu 22.04 AMD VM, Nginx reverse proxy, PM2 process manager
+- [x] Password gate — private beta login page, 30-day cookie, consistent with app design system
+
+## ✅ Completed (continued)
+
+- [x] Bulk actions — multi-select rows, batch stage update, export selected
+- [x] Responsive design — mobile/tablet breakpoints, hamburger nav, horizontal table scroll, stacked detail layouts
+
 ## ❌ Up Next
-- [ ] Responsive design — mobile/tablet breakpoints, horizontal table scroll
+
+### High value
 - [ ] Performance optimization — SWR caching (5-min stale time for list queries)
-- [ ] Bulk actions — multi-select rows, batch mark as contacted/stage update
+
+### Nice to have
+- [ ] Deploy script — git push → auto pull & restart on server (webhook or cron)
+- [ ] HTTPS / SSL — Let's Encrypt cert via certbot, upgrade cookie to secure: true

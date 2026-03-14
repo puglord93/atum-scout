@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import Nav from "@/components/nav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ATUM Researcher Tool",
+  title: "ATUM Scout",
   description: "Deep tech researcher and technology scouting platform",
 };
 
@@ -25,50 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <nav className="border-b border-gray-200 bg-white sticky top-0 z-50">
-          <div className="max-w-[1400px] mx-auto px-6">
-            <div className="flex items-center gap-10 h-14">
-              <Link href="/" className="text-lg font-bold tracking-tight flex-shrink-0" style={{ color: '#F0602C' }}>
-                ATUM Scout
-              </Link>
-              <div className="flex gap-6">
-                <Link
-                  href="/"
-                  className="text-sm text-gray-600 hover:text-gray-900 transition font-medium"
-                >
-                  Overview
-                </Link>
-                <Link
-                  href="/researchers"
-                  className="text-sm text-gray-600 hover:text-gray-900 transition font-medium"
-                >
-                  Researchers
-                </Link>
-                <Link
-                  href="/tech-offers"
-                  className="text-sm text-gray-600 hover:text-gray-900 transition font-medium"
-                >
-                  Tech Offers
-                </Link>
-              </div>
-              <div className="ml-auto">
-                <Link
-                  href="/ingest"
-                  className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded transition"
-                  style={{ backgroundColor: '#F0602C' }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add
-                </Link>
-              </div>
-            </div>
-          </div>
-        </nav>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Nav />
         {children}
       </body>
     </html>

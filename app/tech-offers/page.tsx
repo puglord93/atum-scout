@@ -202,7 +202,7 @@ export default function TechOffersPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-baseline gap-3 mb-2">
@@ -213,7 +213,7 @@ export default function TechOffersPage() {
 
         {/* Filters Bar */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
             <div className="col-span-2">
               <Input
                 type="text"
@@ -249,8 +249,8 @@ export default function TechOffersPage() {
             </Select>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-3">
               <Select value={venturePotentialFilter} onValueChange={setVenturePotentialFilter}>
                 <SelectTrigger className="h-9 text-sm border-gray-300 w-[200px]">
                   <SelectValue placeholder="Venture Potential" />
@@ -276,8 +276,8 @@ export default function TechOffersPage() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline text-sm text-gray-600">
                 <span className="font-medium text-gray-900">{techOffers.length}</span> results
               </span>
               {activeFilters && (
@@ -285,7 +285,7 @@ export default function TechOffersPage() {
                   onClick={resetFilters}
                   className="text-sm text-gray-600 hover:text-gray-900 transition"
                 >
-                  Clear filters
+                  Clear
                 </button>
               )}
               <button
@@ -296,7 +296,8 @@ export default function TechOffersPage() {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </button>
             </div>
           </div>
@@ -313,7 +314,8 @@ export default function TechOffersPage() {
           </div>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full table-fixed">
+            <div className="overflow-x-auto">
+            <table className="w-full table-fixed min-w-[700px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-28">Institution</th>
@@ -357,6 +359,7 @@ export default function TechOffersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

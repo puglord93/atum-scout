@@ -191,7 +191,7 @@ export default function TechOfferDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Back */}
         <Link href="/tech-offers" className="text-xs text-gray-500 hover:text-gray-900 transition mb-6 inline-block">
@@ -239,10 +239,10 @@ export default function TechOfferDetailPage() {
         </div>
 
         {/* 2-col layout */}
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
           {/* LEFT — long-form content */}
-          <div className="col-span-2 space-y-px">
+          <div className="md:col-span-2 space-y-px">
 
             {techOffer.description && (
               <div className="bg-white border border-gray-200 rounded-lg p-5">
@@ -278,7 +278,7 @@ export default function TechOfferDetailPage() {
           </div>
 
           {/* RIGHT — metadata + AI scoring + analysis + linked researcher */}
-          <div className="space-y-4">
+          <div className="space-y-4 md:col-span-1">
 
             {/* Tech metadata */}
             <div className="bg-white border border-gray-200 rounded-lg p-4">

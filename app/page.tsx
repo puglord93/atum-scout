@@ -112,7 +112,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Header */}
         <div className="mb-8">
@@ -121,7 +121,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <Link href="/researchers" className="bg-white border border-gray-200 rounded-lg p-5 hover:border-gray-300 transition group">
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Researchers</div>
             <div className="text-3xl font-semibold text-gray-900 font-mono mb-1">{researchers.total}</div>
@@ -161,7 +161,7 @@ export default function DashboardPage() {
         {/* Pipeline Funnel */}
         <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-4">Scouting Pipeline</div>
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
             {PIPELINE_STAGES.map((s) => {
               const count = researchers.byStage[s.id] ?? 0;
               const pct = researchers.total > 0 ? Math.round((count / researchers.total) * 100) : 0;
@@ -184,7 +184,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Two-col: Tier breakdown + Venture Potential */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
 
           {/* Tier Breakdown */}
           <div className="bg-white border border-gray-200 rounded-lg p-5">
@@ -243,7 +243,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Two-col: Recently Contacted + Top Tier A */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
           {/* Recently Active */}
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">

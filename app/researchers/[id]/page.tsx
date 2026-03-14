@@ -274,7 +274,7 @@ export default function ResearcherDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Back */}
         <Link href="/researchers" className="text-xs text-gray-500 hover:text-gray-900 transition mb-6 inline-block">
@@ -304,7 +304,7 @@ export default function ResearcherDetailPage() {
           </div>
 
           {/* Metrics strip + stage */}
-          <div className="flex gap-6 mt-5 pt-5 border-t border-gray-200 items-end">
+          <div className="flex flex-wrap gap-4 sm:gap-6 mt-5 pt-5 border-t border-gray-200 items-end">
             {[
               { label: 'h-index',     value: researcher.hIndex },
               { label: 'Citations',   value: formatNumber(researcher.citations) },
@@ -331,10 +331,10 @@ export default function ResearcherDetailPage() {
         </div>
 
         {/* 2-col body */}
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
           {/* LEFT — Research profile + Linked tech */}
-          <div className="col-span-2 space-y-4">
+          <div className="md:col-span-2 space-y-4">
 
             {/* Research Profile */}
             <div className="bg-white border border-gray-200 rounded-lg p-5">
@@ -392,7 +392,7 @@ export default function ResearcherDetailPage() {
           </div>
 
           {/* RIGHT — Pipeline + AI Outreach */}
-          <div className="space-y-4">
+          <div className="space-y-4 md:col-span-1">
 
             {/* Pipeline Stage */}
             <div className="bg-white border border-gray-200 rounded-lg p-4">

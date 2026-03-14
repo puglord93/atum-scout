@@ -234,7 +234,7 @@ export default function ResearchersPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-baseline gap-3 mb-2">
@@ -245,8 +245,8 @@ export default function ResearchersPage() {
 
         {/* Filters Bar */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-5 gap-3 mb-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+            <div className="col-span-2 sm:col-span-2">
               <Input
                 type="text"
                 placeholder="Search name, affiliation, domain..."
@@ -291,9 +291,9 @@ export default function ResearchersPage() {
             </Select>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300 w-[280px]">
+              <SelectTrigger className="h-9 text-sm border-gray-300 w-full sm:w-[280px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -304,13 +304,13 @@ export default function ResearchersPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline text-sm text-gray-600">
                 <span className="font-medium text-gray-900">{researchers.length}</span> results
               </span>
               {activeFilters && (
                 <button onClick={resetFilters} className="text-sm text-gray-600 hover:text-gray-900 transition">
-                  Clear filters
+                  Clear
                 </button>
               )}
               <button
@@ -321,7 +321,8 @@ export default function ResearchersPage() {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </button>
             </div>
           </div>
@@ -329,7 +330,7 @@ export default function ResearchersPage() {
 
         {/* Bulk Action Bar */}
         {totalSelected > 0 && (
-          <div className="bg-white border border-gray-300 rounded-lg px-4 py-2.5 mb-3 flex items-center gap-4">
+          <div className="bg-white border border-gray-300 rounded-lg px-4 py-2.5 mb-3 flex flex-wrap items-center gap-3 sm:gap-4">
             <span className="text-sm font-medium text-gray-900">
               {totalSelected} selected
             </span>
@@ -404,7 +405,8 @@ export default function ResearchersPage() {
           </div>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full table-fixed">
+            <div className="overflow-x-auto">
+            <table className="w-full table-fixed min-w-[780px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="py-3 px-3 w-10">
@@ -478,6 +480,7 @@ export default function ResearchersPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

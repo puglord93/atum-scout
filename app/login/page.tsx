@@ -34,7 +34,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-[calc(100vh-56px)] bg-gray-50 flex flex-col">
       {/* Centered card */}
-      <div className="flex-1 flex items-center justify-center py-16 px-4">
+      <div className="flex-1 flex items-center justify-center py-8 sm:py-16 px-4">
         <div className="w-full max-w-sm">
 
           {/* Card */}
