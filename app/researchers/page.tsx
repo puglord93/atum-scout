@@ -47,12 +47,18 @@ export default function ResearchersPage() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectAll, setSelectAll] = useState(false); // select across all filtered pages
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   const uniqueAffiliations = Array.from(new Set(allResearchers.map(r => r.affiliation))).sort();
   const uniqueCategories = Array.from(new Set(allResearchers.map(r => r.category))).sort();
 
   useEffect(() => { fetchResearchers(); }, []);
-
   useEffect(() => { applyFilters(); }, [search, tierFilter, affiliationFilter, categoryFilter, stageFilter, allResearchers]);
+  // Clear selection when filters change
+  useEffect(() => { setSelectedIds(new Set()); setSelectAll(false); }, [search, tierFilter, affiliationFilter, categoryFilter, stageFilter, page]);
 
   const fetchResearchers = async () => {
     setLoading(true);
@@ -99,6 +105,84 @@ export default function ResearchersPage() {
     () => researchers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [researchers, page]
   );
+
+  // Selection helpers
+  const activeIds = selectAll ? researchers.map(r => r.id) : [...selectedIds];
+  const pageIds = pagedResearchers.map(r => r.id);
+  const pageAllSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+  const pageSomeSelected = pageIds.some(id => selectedIds.has(id));
+  const totalSelected = selectAll ? researchers.length : selectedIds.size;
+
+  const toggleRow = (id: number) => {
+    setSelectAll(false);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const togglePage = () => {
+    setSelectAll(false);
+    if (pageAllSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        pageIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        pageIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const handleSelectAll = () => { setSelectAll(true); };
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectAll(false); };
+
+  const handleBulkStageUpdate = async (stageId: string) => {
+    if (totalSelected === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/researchers/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: activeIds, updates: { stage: stageId } }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Update local state
+        setAllResearchers(prev => prev.map(r =>
+          activeIds.includes(r.id) ? { ...r, stage: stageId } : r
+        ));
+        clearSelection();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkExport = () => {
+    const selected = researchers.filter(r => activeIds.includes(r.id));
+    const columns = [
+      { key: 'tier',           label: 'Tier' },
+      { key: 'stage',          label: 'Stage' },
+      { key: 'fullName',       label: 'Name' },
+      { key: 'email',          label: 'Email' },
+      { key: 'affiliation',    label: 'Affiliation' },
+      { key: 'hIndex',         label: 'H-Index' },
+      { key: 'citations',      label: 'Citations' },
+      { key: 'cScore',         label: 'C-Score' },
+      { key: 'globalRank',     label: 'Global Rank' },
+      { key: 'domainTags',     label: 'Domain Tags' },
+      { key: 'subfield',       label: 'Subfield' },
+    ];
+    exportToCsv(selected, columns, `atum-selected-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
 
   const handleExport = () => {
     const columns = [
@@ -243,6 +327,72 @@ export default function ResearchersPage() {
           </div>
         </div>
 
+        {/* Bulk Action Bar */}
+        {totalSelected > 0 && (
+          <div className="bg-white border border-gray-300 rounded-lg px-4 py-2.5 mb-3 flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-900">
+              {totalSelected} selected
+            </span>
+            <div className="w-px h-4 bg-gray-200" />
+
+            {/* Move to stage */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Move to</span>
+              <div className="flex items-center gap-1">
+                {PIPELINE_STAGES.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleBulkStageUpdate(s.id)}
+                    disabled={bulkLoading}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition hover:opacity-80 disabled:opacity-40 ${s.color}`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="w-px h-4 bg-gray-200" />
+
+            {/* Export selected */}
+            <button
+              onClick={handleBulkExport}
+              disabled={bulkLoading}
+              className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition disabled:opacity-40"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export selected
+            </button>
+
+            <div className="ml-auto">
+              <button
+                onClick={clearSelection}
+                className="text-xs text-gray-400 hover:text-gray-600 transition"
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Select-all-pages banner */}
+        {!selectAll && pageSomeSelected && pageAllSelected && researchers.length > PAGE_SIZE && totalSelected < researchers.length && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3 flex items-center gap-3">
+            <span className="text-xs text-blue-700">
+              {pageIds.length} researchers on this page selected.
+            </span>
+            <button
+              onClick={handleSelectAll}
+              className="text-xs font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900 transition"
+            >
+              Select all {researchers.length} researchers
+            </button>
+          </div>
+        )}
+
         {/* Table */}
         {loading ? (
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
@@ -257,6 +407,15 @@ export default function ResearchersPage() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="py-3 px-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={pageAllSelected}
+                      ref={el => { if (el) el.indeterminate = pageSomeSelected && !pageAllSelected; }}
+                      onChange={togglePage}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900 cursor-pointer accent-gray-900"
+                    />
+                  </th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-14">Tier</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-72">Name</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-20">Affil.</th>
@@ -269,8 +428,20 @@ export default function ResearchersPage() {
               <tbody className="divide-y divide-gray-100">
                 {pagedResearchers.map(r => {
                   const stage = getStage(r.stage);
+                  const isSelected = selectAll || selectedIds.has(r.id);
                   return (
-                    <tr key={r.id} className="group hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={r.id}
+                      className={`group hover:bg-gray-50 transition-colors ${isSelected ? 'bg-gray-50' : ''}`}
+                    >
+                      <td className="py-3 px-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleRow(r.id)}
+                          className="w-3.5 h-3.5 rounded border-gray-300 cursor-pointer accent-gray-900"
+                        />
+                      </td>
                       <td className="py-3 px-4">
                         <div className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-semibold ${
                           r.tier === 'A' ? 'bg-[#F0602C] text-white' :
