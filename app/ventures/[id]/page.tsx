@@ -407,7 +407,7 @@ function SectionBlock({
   };
 
   return (
-    <div id={`section-${section.key}`} className="py-6 border-b border-gray-100 last:border-b-0">
+    <div id={`section-${section.key}`} className="py-8 border-b border-gray-100 last:border-b-0">
       <div className="flex items-start justify-between gap-4 mb-3">
         <h2 className="text-base font-semibold text-gray-900">{SECTION_LABELS[section.key]}</h2>
         {!editing && (
@@ -540,7 +540,7 @@ function QuestionsSection({
   };
 
   return (
-    <div id="section-questions" className="py-6 border-b border-gray-100">
+    <div id="section-questions" className="py-8 border-b border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">Open Questions</h2>
         <span className="text-xs text-gray-400 font-mono">{openCount} open · {answeredCount} answered</span>
@@ -680,7 +680,7 @@ function ActionsSection({
   };
 
   return (
-    <div id="section-actions" className="py-6">
+    <div id="section-actions" className="py-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">Action Items</h2>
         <span className="text-xs text-gray-400 font-mono">{openCount} open</span>
@@ -770,6 +770,7 @@ export default function VentureWorkspacePage({
 
   // Add input modal
   const [showAddInput, setShowAddInput] = useState(false);
+  const [viewingInput, setViewingInput] = useState<VentureInput | null>(null);
 
   // Active sidebar section
   const [activeSection, setActiveSection] = useState('summary');
@@ -929,15 +930,17 @@ export default function VentureWorkspacePage({
 
         {/* Top bar */}
         <div className="flex items-start justify-between gap-4 mb-1">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Link href="/ventures" className="text-sm text-gray-400 hover:text-gray-700 transition flex-shrink-0 flex items-center gap-1">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            {/* Breadcrumb */}
+            <Link href="/ventures" className="text-sm text-gray-400 hover:text-gray-700 transition flex-shrink-0 flex items-center gap-1 w-fit">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Ventures
             </Link>
 
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Title + status */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               {editingTitle ? (
                 <input
                   ref={titleInputRef}
@@ -1022,7 +1025,7 @@ export default function VentureWorkspacePage({
 
         {/* Subtitle */}
         {(venture.researcher || venture.techOffer) && (
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6 ml-[calc(1rem+1.75rem+0.75rem)]">
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
             {venture.researcher && (
               <Link href={`/researchers/${venture.researcher.id}`} className="hover:text-gray-800 transition">
                 {venture.researcher.fullName} · {venture.researcher.affiliation}
@@ -1040,8 +1043,8 @@ export default function VentureWorkspacePage({
         {/* Main layout: sidebar + content */}
         <div className="flex gap-6 items-start">
           {/* Sidebar */}
-          <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 sticky top-[calc(3.5rem+1rem)]">
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <aside className="hidden lg:flex flex-col w-60 flex-shrink-0 sticky top-[calc(3.5rem+1rem)]">
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Sections</p>
               <nav className="space-y-0.5">
                 {navItems.map(item => {
@@ -1080,16 +1083,18 @@ export default function VentureWorkspacePage({
                 </button>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {venture.inputs.length === 0 ? (
                   <p className="text-xs text-gray-400 italic">No inputs yet</p>
                 ) : (
                   venture.inputs.map(input => (
-                    <div key={input.id} className="group flex items-center gap-1.5 py-1">
+                    <div key={input.id} className="group flex items-center gap-1.5 py-1.5 px-2 rounded hover:bg-gray-50 transition cursor-pointer"
+                      onClick={() => setViewingInput(input)}
+                    >
                       {inputIcon(input.type)}
                       <span className="text-xs text-gray-600 truncate flex-1" title={input.label}>{input.label}</span>
                       <button
-                        onClick={() => handleDeleteInput(input.id)}
+                        onClick={e => { e.stopPropagation(); handleDeleteInput(input.id); }}
                         className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition flex-shrink-0"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1104,7 +1109,7 @@ export default function VentureWorkspacePage({
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-6">
+          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-10">
             {/* Mobile: add input button */}
             <div className="lg:hidden py-4 border-b border-gray-100">
               <button
@@ -1154,6 +1159,42 @@ export default function VentureWorkspacePage({
           onSaved={handleInputSaved}
           onSavedAndAnalyze={handleInputSavedAndAnalyze}
         />
+      )}
+
+      {/* Input view modal */}
+      {viewingInput && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setViewingInput(null)}>
+          <div className="bg-white rounded-lg border border-gray-200 w-full max-w-2xl shadow-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                {inputIcon(viewingInput.type)}
+                <span className="text-sm font-semibold text-gray-900">{viewingInput.label}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400">{new Date(viewingInput.createdAt).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <button onClick={() => setViewingInput(null)} className="text-gray-400 hover:text-gray-600 transition">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <pre className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">{viewingInput.content}</pre>
+            </div>
+            <div className="px-6 py-3 border-t border-gray-100 flex justify-between items-center flex-shrink-0">
+              <button
+                onClick={() => { handleDeleteInput(viewingInput.id); setViewingInput(null); }}
+                className="text-xs text-red-400 hover:text-red-600 transition"
+              >
+                Delete input
+              </button>
+              <button onClick={() => setViewingInput(null)} className="h-8 px-4 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:border-gray-400 transition">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

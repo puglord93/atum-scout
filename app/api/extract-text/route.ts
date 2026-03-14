@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       filename.endsWith('.doc')
     ) {
       // Office format extraction
-      const officeParser = await import('officeparser');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const officeParser = require('officeparser');
       text = await officeParser.parseOfficeAsync(buffer);
     } else {
       return NextResponse.json(
