@@ -406,7 +406,7 @@ export default function ResearchersPage() {
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-            <table className="w-full table-fixed min-w-[780px]">
+            <table className="w-full table-fixed min-w-[920px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="py-3 px-3 w-10">
@@ -423,7 +423,7 @@ export default function ResearchersPage() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-20">Affil.</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-20">h-index</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-28">Citations</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide">Domain</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-40">Domain</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-28">Stage</th>
                 </tr>
               </thead>

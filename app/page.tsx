@@ -266,7 +266,7 @@ export default function DashboardPage() {
                           </Link>
                           <div className="text-xs text-gray-400 mt-0.5">{abbreviateAffiliation(r.affiliation)}</div>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 sm:px-4 py-3 text-right whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
                             {s.label}
@@ -301,11 +301,11 @@ export default function DashboardPage() {
                       </Link>
                       <div className="text-xs text-gray-400 mt-0.5 truncate">{r.domainTags || abbreviateAffiliation(r.affiliation)}</div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="hidden sm:table-cell px-4 py-3 text-right">
                       <div className="font-mono text-sm text-gray-900">{r.hIndex}</div>
                       <div className="text-xs text-gray-400 mt-0.5">h-index</div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 sm:px-4 py-3 text-right whitespace-nowrap">
                       {(() => {
                         const s = getStage(r.stage);
                         return (

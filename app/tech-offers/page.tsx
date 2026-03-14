@@ -315,15 +315,15 @@ export default function TechOffersPage() {
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-            <table className="w-full table-fixed min-w-[700px]">
+            <table className="w-full table-fixed min-w-[960px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-28">Institution</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-80">Technology</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-16">TRL</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-72">Technology</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-14">TRL</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-40">Sector</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide">Venture Potential</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide">ATUM Pursue</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-44">Venture Potential</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase tracking-wide w-40">ATUM Pursue</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
