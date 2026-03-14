@@ -40,6 +40,9 @@ model Researcher {
   // Activity log
   activityNotes     ResearcherNote[]
 
+  // Ventures
+  ventures          VentureCase[]
+
   // Timestamps
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -88,6 +91,9 @@ model TechOffer {
   aiSummary               String?  @map("ai_summary")
   aiScoredAt              DateTime? @map("ai_scored_at")
 
+  // Ventures
+  ventures             VentureCase[]
+
   // Provenance
   source               String   @default("excel_import")
 
@@ -96,4 +102,63 @@ model TechOffer {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("tech_offers")
+}
+
+model VentureCase {
+  id           Int               @id @default(autoincrement())
+  title        String
+  status       String            @default("draft")
+  researcherId Int?
+  techOfferId  Int?
+  researcher   Researcher?       @relation(fields: [researcherId], references: [id])
+  techOffer    TechOffer?        @relation(fields: [techOfferId], references: [id])
+  inputs       VentureInput[]
+  sections     VentureSection[]
+  questions    VentureQuestion[]
+  actions      VentureAction[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model VentureInput {
+  id            Int         @id @default(autoincrement())
+  ventureCaseId Int
+  ventureCase   VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
+  type          String
+  label         String
+  content       String
+  createdAt     DateTime    @default(now())
+}
+
+model VentureSection {
+  id            Int         @id @default(autoincrement())
+  ventureCaseId Int
+  ventureCase   VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
+  key           String
+  content       String      @default("")
+  generatedAt   DateTime?
+  editedAt      DateTime?
+  inputCount    Int         @default(0)
+}
+
+model VentureQuestion {
+  id            Int         @id @default(autoincrement())
+  ventureCaseId Int
+  ventureCase   VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
+  question      String
+  answer        String?
+  answered      Boolean     @default(false)
+  order         Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model VentureAction {
+  id            Int         @id @default(autoincrement())
+  ventureCaseId Int
+  ventureCase   VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
+  text          String
+  done          Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }

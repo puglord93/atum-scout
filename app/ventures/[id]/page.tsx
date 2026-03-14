@@ -1,0 +1,1053 @@
+'use client';
+
+import { useState, useEffect, useRef, use } from 'react';
+import Link from 'next/link';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type VentureInput = {
+  id: number;
+  type: string;
+  label: string;
+  content: string;
+  createdAt: string;
+};
+
+type VentureSection = {
+  id: number;
+  key: string;
+  content: string;
+  generatedAt: string | null;
+  editedAt: string | null;
+  inputCount: number;
+};
+
+type VentureQuestion = {
+  id: number;
+  question: string;
+  answer: string | null;
+  answered: boolean;
+  order: number;
+};
+
+type VentureAction = {
+  id: number;
+  text: string;
+  done: boolean;
+};
+
+type Researcher = {
+  id: number;
+  fullName: string;
+  affiliation: string;
+  tier: string;
+};
+
+type TechOffer = {
+  id: number;
+  technology: string;
+  techId: string;
+  institution: string;
+  description: string | null;
+};
+
+type VentureCase = {
+  id: number;
+  title: string;
+  status: string;
+  researcher: Researcher | null;
+  techOffer: TechOffer | null;
+  inputs: VentureInput[];
+  sections: VentureSection[];
+  questions: VentureQuestion[];
+  actions: VentureAction[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const SECTION_KEYS = ['summary', 'market_context', 'use_case', 'vs_existing', 'unit_economics', 'market_sizing'];
+
+const SECTION_LABELS: Record<string, string> = {
+  summary: 'Summary',
+  market_context: 'Market Context',
+  use_case: 'Use Cases',
+  vs_existing: 'vs. Existing',
+  unit_economics: 'Unit Economics',
+  market_sizing: 'Market Sizing',
+};
+
+const INPUT_TYPES = [
+  { value: 'call_notes', label: 'Call Notes' },
+  { value: 'deck', label: 'Deck / Slides' },
+  { value: 'paper', label: 'Research Paper' },
+  { value: 'email', label: 'Email' },
+  { value: 'other', label: 'Other' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function inputIcon(type: string) {
+  if (type === 'deck' || type === 'paper') {
+    return (
+      <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  );
+}
+
+function sectionDot(section: VentureSection | undefined) {
+  if (!section || !section.content) {
+    return <span className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0" />;
+  }
+  if (section.editedAt) {
+    return <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />;
+  }
+  if (section.generatedAt) {
+    return <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#F0602C' }} />;
+  }
+  return <span className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0" />;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const classes: Record<string, string> = {
+    active: 'bg-orange-50 text-[#F0602C]',
+    draft: 'bg-gray-100 text-gray-500',
+    archived: 'bg-gray-100 text-gray-400',
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${classes[status] || classes.draft}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
+
+// ─── Add Input Modal ──────────────────────────────────────────────────────────
+
+function AddInputModal({
+  ventureId,
+  onClose,
+  onSaved,
+  onSavedAndAnalyze,
+}: {
+  ventureId: number;
+  onClose: () => void;
+  onSaved: (input: VentureInput) => void;
+  onSavedAndAnalyze: (input: VentureInput) => void;
+}) {
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const [type, setType] = useState('call_notes');
+  const [label, setLabel] = useState(`Call — ${dateStr}`);
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const updateLabel = (newType: string) => {
+    const typeLabel = INPUT_TYPES.find(t => t.value === newType)?.label || 'Note';
+    setLabel(`${typeLabel} — ${dateStr}`);
+    setType(newType);
+  };
+
+  const save = async (andAnalyze = false) => {
+    if (!label.trim() || !content.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/inputs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, label, content }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (andAnalyze) onSavedAndAnalyze(data.data);
+        else onSaved(data.data);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg border border-gray-200 w-full max-w-xl shadow-lg">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <h2 className="text-sm font-semibold text-gray-900">Add Input</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Type</label>
+            <select
+              value={type}
+              onChange={e => updateLabel(e.target.value)}
+              className="w-full h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+            >
+              {INPUT_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Label</label>
+            <input
+              type="text"
+              value={label}
+              onChange={e => setLabel(e.target.value)}
+              className="w-full h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Content</label>
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              rows={8}
+              placeholder="Paste call notes, paper abstract, email thread, or any relevant context..."
+              className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-[#F0602C] resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 gap-3">
+          <button
+            onClick={onClose}
+            className="h-9 px-4 text-sm font-medium text-gray-600 border border-gray-300 rounded hover:border-gray-400 transition"
+          >
+            Cancel
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => save(false)}
+              disabled={saving || !label.trim() || !content.trim()}
+              className="h-9 px-4 text-sm font-medium text-gray-700 border border-gray-300 rounded hover:border-gray-400 transition disabled:opacity-40"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => save(true)}
+              disabled={saving || !label.trim() || !content.trim()}
+              className="h-9 px-4 text-sm font-medium text-white rounded transition disabled:opacity-40 inline-flex items-center gap-1.5"
+              style={{ backgroundColor: '#F0602C' }}
+            >
+              {saving && (
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+              Save & Re-analyze All
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section Content Block ────────────────────────────────────────────────────
+
+function SectionBlock({
+  section,
+  ventureId,
+  analyzing,
+  onSave,
+}: {
+  section: VentureSection;
+  ventureId: number;
+  analyzing: boolean;
+  onSave: (key: string, content: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(section.content);
+
+  const handleSave = async () => {
+    const res = await fetch(`/api/ventures/${ventureId}/sections/${section.key}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: editContent }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      onSave(section.key, editContent);
+      setEditing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditContent(section.content);
+    setEditing(false);
+  };
+
+  return (
+    <div id={`section-${section.key}`} className="py-6 border-b border-gray-100 last:border-b-0">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <h2 className="text-base font-semibold text-gray-900">{SECTION_LABELS[section.key]}</h2>
+        {!editing && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {section.generatedAt && (
+              <span className="text-xs text-gray-400">
+                Generated {formatDate(section.generatedAt)}
+                {section.inputCount > 0 && ` · after ${section.inputCount} input${section.inputCount !== 1 ? 's' : ''}`}
+              </span>
+            )}
+            {section.content && (
+              <button
+                onClick={() => { setEditContent(section.content); setEditing(true); }}
+                className="text-xs text-gray-500 hover:text-gray-900 transition flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {editing ? (
+        <div>
+          <textarea
+            value={editContent}
+            onChange={e => setEditContent(e.target.value)}
+            rows={10}
+            className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-[#F0602C] resize-y leading-relaxed"
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={handleSave}
+              className="h-8 px-3 text-xs font-medium text-white rounded transition"
+              style={{ backgroundColor: '#F0602C' }}
+            >
+              Save
+            </button>
+            <button
+              onClick={handleCancel}
+              className="h-8 px-3 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:border-gray-400 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : section.content ? (
+        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{section.content}</div>
+      ) : analyzing ? (
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Generating...
+        </div>
+      ) : (
+        <div className="text-sm text-gray-400 italic">No analysis yet.</div>
+      )}
+    </div>
+  );
+}
+
+// ─── Questions Section ────────────────────────────────────────────────────────
+
+function QuestionsSection({
+  ventureId,
+  questions,
+  onUpdate,
+}: {
+  ventureId: number;
+  questions: VentureQuestion[];
+  onUpdate: (questions: VentureQuestion[]) => void;
+}) {
+  const [newQ, setNewQ] = useState('');
+  const [answerInputs, setAnswerInputs] = useState<Record<number, string>>({});
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const openCount = questions.filter(q => !q.answered).length;
+  const answeredCount = questions.filter(q => q.answered).length;
+
+  const addQuestion = async () => {
+    if (!newQ.trim()) return;
+    const res = await fetch(`/api/ventures/${ventureId}/questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: newQ.trim() }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      onUpdate([...questions, data.data]);
+      setNewQ('');
+    }
+  };
+
+  const deleteQuestion = async (qId: number) => {
+    const res = await fetch(`/api/ventures/${ventureId}/questions/${qId}`, { method: 'DELETE' });
+    if (res.ok) {
+      onUpdate(questions.filter(q => q.id !== qId));
+    }
+  };
+
+  const markAnswered = async (q: VentureQuestion) => {
+    const answer = answerInputs[q.id] || '';
+    const res = await fetch(`/api/ventures/${ventureId}/questions/${q.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer, answered: true }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      onUpdate(questions.map(qq => qq.id === q.id ? data.data : qq));
+      setAnswerInputs(prev => { const next = { ...prev }; delete next[q.id]; return next; });
+    }
+  };
+
+  const toggleAnswered = async (q: VentureQuestion) => {
+    const res = await fetch(`/api/ventures/${ventureId}/questions/${q.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answered: !q.answered }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      onUpdate(questions.map(qq => qq.id === q.id ? data.data : qq));
+    }
+  };
+
+  return (
+    <div id="section-questions" className="py-6 border-b border-gray-100">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-900">Open Questions</h2>
+        <span className="text-xs text-gray-400 font-mono">{openCount} open · {answeredCount} answered</span>
+      </div>
+
+      <div className="space-y-3 mb-4">
+        {questions.map(q => (
+          <div
+            key={q.id}
+            className="group"
+            onMouseEnter={() => setHovered(q.id)}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <div className="flex items-start gap-2">
+              <button
+                onClick={() => toggleAnswered(q)}
+                className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 transition ${
+                  q.answered ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-gray-400'
+                } flex items-center justify-center`}
+              >
+                {q.answered && (
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm ${q.answered ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                  {q.question}
+                </p>
+                {q.answered && q.answer && (
+                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">Answer: {q.answer}</p>
+                )}
+                {!q.answered && (
+                  <div className="mt-2 flex items-start gap-2">
+                    <textarea
+                      rows={2}
+                      placeholder="Add answer..."
+                      value={answerInputs[q.id] || ''}
+                      onChange={e => setAnswerInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
+                      className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#F0602C] resize-none text-gray-700"
+                    />
+                    <button
+                      onClick={() => markAnswered(q)}
+                      disabled={!(answerInputs[q.id] || '').trim()}
+                      className="h-8 px-2.5 text-xs font-medium text-white rounded transition disabled:opacity-40 flex-shrink-0"
+                      style={{ backgroundColor: '#F0602C' }}
+                    >
+                      Mark Answered
+                    </button>
+                  </div>
+                )}
+              </div>
+              {hovered === q.id && (
+                <button
+                  onClick={() => deleteQuestion(q.id)}
+                  className="mt-0.5 text-gray-300 hover:text-red-400 transition flex-shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="Add a question..."
+          value={newQ}
+          onChange={e => setNewQ(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addQuestion()}
+          className="flex-1 h-9 text-sm border border-gray-200 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+        />
+        <button
+          onClick={addQuestion}
+          disabled={!newQ.trim()}
+          className="h-9 px-3 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:border-gray-400 transition disabled:opacity-40"
+        >
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Actions Section ──────────────────────────────────────────────────────────
+
+function ActionsSection({
+  ventureId,
+  actions,
+  onUpdate,
+}: {
+  ventureId: number;
+  actions: VentureAction[];
+  onUpdate: (actions: VentureAction[]) => void;
+}) {
+  const [newAction, setNewAction] = useState('');
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const openCount = actions.filter(a => !a.done).length;
+
+  const addAction = async () => {
+    if (!newAction.trim()) return;
+    const res = await fetch(`/api/ventures/${ventureId}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: newAction.trim() }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      onUpdate([...actions, data.data]);
+      setNewAction('');
+    }
+  };
+
+  const toggleDone = async (action: VentureAction) => {
+    const res = await fetch(`/api/ventures/${ventureId}/actions/${action.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: !action.done }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      onUpdate(actions.map(a => a.id === action.id ? data.data : a));
+    }
+  };
+
+  const deleteAction = async (aId: number) => {
+    const res = await fetch(`/api/ventures/${ventureId}/actions/${aId}`, { method: 'DELETE' });
+    if (res.ok) {
+      onUpdate(actions.filter(a => a.id !== aId));
+    }
+  };
+
+  return (
+    <div id="section-actions" className="py-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-900">Action Items</h2>
+        <span className="text-xs text-gray-400 font-mono">{openCount} open</span>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        {actions.map(a => (
+          <div
+            key={a.id}
+            className="flex items-center gap-2 group"
+            onMouseEnter={() => setHovered(a.id)}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <button
+              onClick={() => toggleDone(a)}
+              className={`w-4 h-4 rounded border flex-shrink-0 transition flex items-center justify-center ${
+                a.done ? 'bg-gray-400 border-gray-400 text-white' : 'border-gray-300 hover:border-gray-500'
+              }`}
+            >
+              {a.done && (
+                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+            <span className={`text-sm flex-1 ${a.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+              {a.text}
+            </span>
+            {hovered === a.id && (
+              <button
+                onClick={() => deleteAction(a.id)}
+                className="text-gray-300 hover:text-red-400 transition flex-shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="Add an action item..."
+          value={newAction}
+          onChange={e => setNewAction(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addAction()}
+          className="flex-1 h-9 text-sm border border-gray-200 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+        />
+        <button
+          onClick={addAction}
+          disabled={!newAction.trim()}
+          className="h-9 px-3 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:border-gray-400 transition disabled:opacity-40"
+        >
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function VentureWorkspacePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: idParam } = use(params);
+  const ventureId = parseInt(idParam);
+
+  const [venture, setVenture] = useState<VentureCase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  // Title editing
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Analyze state
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeDropdownOpen, setAnalyzeDropdownOpen] = useState(false);
+  const analyzeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Add input modal
+  const [showAddInput, setShowAddInput] = useState(false);
+
+  // Active sidebar section
+  const [activeSection, setActiveSection] = useState('summary');
+
+  // Load venture
+  useEffect(() => {
+    if (isNaN(ventureId)) { setNotFound(true); setLoading(false); return; }
+    fetch(`/api/ventures/${ventureId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setVenture(d.data);
+        else setNotFound(true);
+      })
+      .finally(() => setLoading(false));
+  }, [ventureId]);
+
+  // Close analyze dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (analyzeDropdownRef.current && !analyzeDropdownRef.current.contains(e.target as Node)) {
+        setAnalyzeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Focus title input when editing
+  useEffect(() => {
+    if (editingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingTitle]);
+
+  // Track active section via scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const allKeys = [...SECTION_KEYS, 'questions', 'actions'];
+      for (const key of [...allKeys].reverse()) {
+        const el = document.getElementById(`section-${key}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 120) {
+            setActiveSection(key);
+            return;
+          }
+        }
+      }
+      setActiveSection(allKeys[0]);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const saveTitle = async () => {
+    if (!venture || !titleInput.trim() || titleInput === venture.title) {
+      setEditingTitle(false);
+      return;
+    }
+    const res = await fetch(`/api/ventures/${ventureId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: titleInput.trim() }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setVenture(v => v ? { ...v, title: data.data.title } : v);
+    }
+    setEditingTitle(false);
+  };
+
+  const analyze = async (key?: string) => {
+    setAnalyzing(true);
+    setAnalyzeDropdownOpen(false);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(key ? { key } : {}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVenture(v => v ? {
+          ...v,
+          sections: data.data.sections,
+          questions: data.data.questions,
+        } : v);
+      }
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const scrollToSection = (key: string) => {
+    const el = document.getElementById(`section-${key}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveSection(key);
+    }
+  };
+
+  const handleInputSaved = (input: VentureInput) => {
+    setVenture(v => v ? { ...v, inputs: [...v.inputs, input] } : v);
+    setShowAddInput(false);
+  };
+
+  const handleInputSavedAndAnalyze = async (input: VentureInput) => {
+    setVenture(v => v ? { ...v, inputs: [...v.inputs, input] } : v);
+    setShowAddInput(false);
+    await analyze();
+  };
+
+  const handleDeleteInput = async (inputId: number) => {
+    const res = await fetch(`/api/ventures/${ventureId}/inputs/${inputId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setVenture(v => v ? { ...v, inputs: v.inputs.filter(i => i.id !== inputId) } : v);
+    }
+  };
+
+  const handleSectionSave = (key: string, content: string) => {
+    setVenture(v => v ? {
+      ...v,
+      sections: v.sections.map(s => s.key === key ? { ...s, content, editedAt: new Date().toISOString() } : s),
+    } : v);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <div className="text-sm text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (notFound || !venture) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm text-gray-500 mb-4">Venture case not found.</p>
+          <Link href="/ventures" className="text-sm text-[#F0602C] hover:underline">Back to Ventures</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const sectionMap = Object.fromEntries(venture.sections.map(s => [s.key, s]));
+  const navItems = [
+    ...SECTION_KEYS.map(k => ({ key: k, label: SECTION_LABELS[k] })),
+    { key: 'questions', label: 'Questions' },
+    { key: 'actions', label: 'Actions' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#fafafa]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+        {/* Top bar */}
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Link href="/ventures" className="text-sm text-gray-400 hover:text-gray-700 transition flex-shrink-0 flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Ventures
+            </Link>
+
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {editingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={titleInput}
+                  onChange={e => setTitleInput(e.target.value)}
+                  onBlur={saveTitle}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveTitle();
+                    if (e.key === 'Escape') setEditingTitle(false);
+                  }}
+                  className="text-2xl font-semibold text-gray-900 tracking-tight bg-transparent border-b-2 border-[#F0602C] outline-none flex-1 min-w-0 py-0.5"
+                />
+              ) : (
+                <h1
+                  className="text-2xl font-semibold text-gray-900 tracking-tight cursor-text hover:text-gray-700 transition truncate"
+                  onClick={() => { setTitleInput(venture.title); setEditingTitle(true); }}
+                  title="Click to edit"
+                >
+                  {venture.title}
+                </h1>
+              )}
+              <StatusBadge status={venture.status} />
+            </div>
+          </div>
+
+          {/* Analyze button */}
+          <div ref={analyzeDropdownRef} className="relative flex-shrink-0">
+            <div className="flex items-center">
+              <button
+                onClick={() => analyze()}
+                disabled={analyzing}
+                className="h-9 pl-4 pr-2 text-sm font-medium text-white rounded-l transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                style={{ backgroundColor: '#F0602C' }}
+              >
+                {analyzing ? (
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                )}
+                {analyzing ? 'Analyzing...' : 'Analyze All'}
+              </button>
+              <button
+                onClick={() => setAnalyzeDropdownOpen(o => !o)}
+                disabled={analyzing}
+                className="h-9 px-2 text-white rounded-r border-l border-white/20 transition disabled:opacity-50"
+                style={{ backgroundColor: '#F0602C' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+
+            {analyzeDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                <button
+                  onClick={() => analyze()}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Analyze All Sections
+                </button>
+                <div className="h-px bg-gray-100 my-1" />
+                {SECTION_KEYS.map(k => (
+                  <button
+                    key={k}
+                    onClick={() => analyze(k)}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
+                  >
+                    Regenerate {SECTION_LABELS[k]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Subtitle */}
+        {(venture.researcher || venture.techOffer) && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6 ml-[calc(1rem+1.75rem+0.75rem)]">
+            {venture.researcher && (
+              <Link href={`/researchers/${venture.researcher.id}`} className="hover:text-gray-800 transition">
+                {venture.researcher.fullName} · {venture.researcher.affiliation}
+              </Link>
+            )}
+            {venture.researcher && venture.techOffer && <span className="text-gray-300">|</span>}
+            {venture.techOffer && (
+              <Link href={`/tech-offers/${venture.techOffer.id}`} className="hover:text-gray-800 transition">
+                {venture.techOffer.technology}
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Main layout: sidebar + content */}
+        <div className="flex gap-6 items-start">
+          {/* Sidebar */}
+          <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 sticky top-[calc(3.5rem+1rem)]">
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Sections</p>
+              <nav className="space-y-0.5">
+                {navItems.map(item => {
+                  const section = sectionMap[item.key];
+                  const isActive = activeSection === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => scrollToSection(item.key)}
+                      className={`w-full text-left flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition ${
+                        isActive ? 'text-gray-900 bg-gray-50 font-medium' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      {item.key === 'questions' ? (
+                        <span className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0" />
+                      ) : item.key === 'actions' ? (
+                        <span className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0" />
+                      ) : (
+                        sectionDot(section)
+                      )}
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              <div className="h-px bg-gray-100 my-4" />
+
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Inputs</p>
+                <button
+                  onClick={() => setShowAddInput(true)}
+                  className="text-xs text-gray-400 hover:text-gray-700 transition font-medium"
+                >
+                  + Add
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                {venture.inputs.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">No inputs yet</p>
+                ) : (
+                  venture.inputs.map(input => (
+                    <div key={input.id} className="group flex items-center gap-1.5 py-1">
+                      {inputIcon(input.type)}
+                      <span className="text-xs text-gray-600 truncate flex-1" title={input.label}>{input.label}</span>
+                      <button
+                        onClick={() => handleDeleteInput(input.id)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition flex-shrink-0"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
+
+          {/* Main content */}
+          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-6">
+            {/* Mobile: add input button */}
+            <div className="lg:hidden py-4 border-b border-gray-100">
+              <button
+                onClick={() => setShowAddInput(true)}
+                className="text-sm text-gray-600 hover:text-gray-900 transition flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Input
+              </button>
+            </div>
+
+            {/* Analysis sections */}
+            {SECTION_KEYS.map(key => (
+              <SectionBlock
+                key={key}
+                section={sectionMap[key] || { id: 0, key, content: '', generatedAt: null, editedAt: null, inputCount: 0 }}
+                ventureId={ventureId}
+                analyzing={analyzing}
+                onSave={handleSectionSave}
+              />
+            ))}
+
+            {/* Questions */}
+            <QuestionsSection
+              ventureId={ventureId}
+              questions={venture.questions}
+              onUpdate={qs => setVenture(v => v ? { ...v, questions: qs } : v)}
+            />
+
+            {/* Actions */}
+            <ActionsSection
+              ventureId={ventureId}
+              actions={venture.actions}
+              onUpdate={as => setVenture(v => v ? { ...v, actions: as } : v)}
+            />
+          </main>
+        </div>
+      </div>
+
+      {/* Add Input Modal */}
+      {showAddInput && (
+        <AddInputModal
+          ventureId={ventureId}
+          onClose={() => setShowAddInput(false)}
+          onSaved={handleInputSaved}
+          onSavedAndAnalyze={handleInputSavedAndAnalyze}
+        />
+      )}
+    </div>
+  );
+}

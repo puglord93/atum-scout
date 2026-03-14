@@ -25,6 +25,9 @@ export default function Nav() {
             <Link href="/tech-offers" className="text-sm text-gray-600 hover:text-gray-900 transition font-medium">
               Tech Offers
             </Link>
+            <Link href="/ventures" className="text-sm text-gray-600 hover:text-gray-900 transition font-medium">
+              Ventures
+            </Link>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -67,6 +70,10 @@ export default function Nav() {
           <Link href="/tech-offers" onClick={() => setMobileOpen(false)}
             className="block px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded transition font-medium">
             Tech Offers
+          </Link>
+          <Link href="/ventures" onClick={() => setMobileOpen(false)}
+            className="block px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded transition font-medium">
+            Ventures
           </Link>
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
@@ -37,9 +38,10 @@ type Researcher = {
 };
 
 export default function ResearchersPage() {
+  const { data: swrData, isLoading, mutate } = useSWR('/api/researchers');
+  const allResearchers: Researcher[] = swrData?.data ?? [];
+
   const [researchers, setResearchers] = useState<Researcher[]>([]);
-  const [allResearchers, setAllResearchers] = useState<Researcher[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [affiliationFilter, setAffiliationFilter] = useState<string>('all');
@@ -55,26 +57,9 @@ export default function ResearchersPage() {
   const uniqueAffiliations = Array.from(new Set(allResearchers.map(r => r.affiliation))).sort();
   const uniqueCategories = Array.from(new Set(allResearchers.map(r => r.category))).sort();
 
-  useEffect(() => { fetchResearchers(); }, []);
   useEffect(() => { applyFilters(); }, [search, tierFilter, affiliationFilter, categoryFilter, stageFilter, allResearchers]);
   // Clear selection when filters change
   useEffect(() => { setSelectedIds(new Set()); setSelectAll(false); }, [search, tierFilter, affiliationFilter, categoryFilter, stageFilter, page]);
-
-  const fetchResearchers = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/researchers');
-      const data = await res.json();
-      if (data.success) {
-        setAllResearchers(data.data);
-        setResearchers(data.data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const applyFilters = () => {
     let filtered = [...allResearchers];
@@ -153,10 +138,14 @@ export default function ResearchersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // Update local state
-        setAllResearchers(prev => prev.map(r =>
-          activeIds.includes(r.id) ? { ...r, stage: stageId } : r
-        ));
+        // Optimistically update SWR cache — no re-fetch needed
+        mutate(
+          (current: { success: boolean; data: Researcher[] }) => ({
+            ...current,
+            data: current.data.map(r => activeIds.includes(r.id) ? { ...r, stage: stageId } : r),
+          }),
+          false
+        );
         clearSelection();
       }
     } catch (e) {
@@ -395,7 +384,7 @@ export default function ResearchersPage() {
         )}
 
         {/* Table */}
-        {loading ? (
+        {isLoading ? (
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
             <div className="text-sm text-gray-500">Loading...</div>
           </div>
@@ -485,7 +474,7 @@ export default function ResearchersPage() {
         )}
 
         {/* Pagination */}
-        {!loading && researchers.length > PAGE_SIZE && (
+        {!isLoading && researchers.length > PAGE_SIZE && (
           <div className="flex items-center justify-between mt-4">
             <span className="text-xs text-gray-500 font-mono">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, researchers.length)} of {researchers.length}

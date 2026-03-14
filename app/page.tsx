@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { PIPELINE_STAGES, getStage } from '@/lib/stages';
 
@@ -71,20 +71,10 @@ const abbreviateAffiliation = (affiliation: string): string => {
 };
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: swrData, isLoading } = useSWR('/api/stats');
+  const stats: Stats | null = swrData?.success ? swrData.data : null;
 
-  useEffect(() => {
-    fetch('/api/stats')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setStats(d.data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
         <div className="text-sm text-gray-400">Loading...</div>

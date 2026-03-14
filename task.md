@@ -62,7 +62,23 @@
 - [x] HTTPS / SSL — Let's Encrypt cert (sslip.io), secure cookie in production, auto-renews via certbot
 - [x] Deploy script — GitHub Actions: push to main → SSH → git pull → build → pm2 restart (zero manual steps)
 
-## ❌ Up Next
+## ✅ Completed (continued)
 
-### High value
-- [ ] Performance optimization — SWR caching (5-min stale time for list queries)
+- [x] Performance optimization — SWR caching (5-min stale time for list queries, global SWRConfig provider, optimistic bulk-update mutation)
+
+## ✅ Completed (continued)
+
+- [x] Ventures workspace — `/ventures` section with full venture diligence workflow:
+  - Venture cases list page — card grid with status badges, linked researcher/tech offer, input/question/action counts
+  - Create venture form — link to existing researcher + tech offer
+  - Workspace (Layout A) — sticky sidebar nav with section status dots, all analysis sections stacked
+  - 6 AI-analyzed sections: Summary, Market Context, Use Cases, vs. Existing, Unit Economics, Market Sizing
+  - Per-section regenerate + "Analyze All" dropdown (orange CTA)
+  - "Last generated [date] · after N inputs" provenance on each section
+  - Inline title editing (click to edit)
+  - Add Input modal — Call Notes / Deck / Paper / Email / Other, "Save & Re-analyze" option
+  - Open Questions — add, answer inline, mark resolved, AI auto-extracts on first analysis
+  - Action Items — add, toggle done
+  - Re-analyze with answered questions trigger
+  - "Ventures" nav link added (desktop + mobile hamburger)
+  - Future: Layout C (Validation Board) toggle planned as next sprint

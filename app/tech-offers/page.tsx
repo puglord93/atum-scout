@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
 
 const PAGE_SIZE = 50;
 import Link from 'next/link';
@@ -33,9 +34,10 @@ type TechOffer = {
 };
 
 export default function TechOffersPage() {
+  const { data: swrData, isLoading } = useSWR('/api/tech-offers');
+  const allTechOffers: TechOffer[] = swrData?.data ?? [];
+
   const [techOffers, setTechOffers] = useState<TechOffer[]>([]);
-  const [allTechOffers, setAllTechOffers] = useState<TechOffer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState<string>('all');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
@@ -83,28 +85,8 @@ export default function TechOffersPage() {
   ).sort() as string[];
 
   useEffect(() => {
-    fetchTechOffers();
-  }, []);
-
-  useEffect(() => {
     applyFilters();
   }, [search, institutionFilter, sectorFilter, venturePotentialFilter, trlFilter, allTechOffers]);
-
-  const fetchTechOffers = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/tech-offers`);
-      const data = await response.json();
-      if (data.success) {
-        setAllTechOffers(data.data);
-        setTechOffers(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching tech offers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const applyFilters = () => {
     let filtered = [...allTechOffers];
@@ -304,7 +286,7 @@ export default function TechOffersPage() {
         </div>
 
         {/* Table */}
-        {loading ? (
+        {isLoading ? (
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
             <div className="text-sm text-gray-500">Loading...</div>
           </div>
@@ -364,7 +346,7 @@ export default function TechOffersPage() {
         )}
 
         {/* Pagination */}
-        {!loading && techOffers.length > PAGE_SIZE && (
+        {!isLoading && techOffers.length > PAGE_SIZE && (
           <div className="flex items-center justify-between mt-4">
             <span className="text-xs text-gray-500 font-mono">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, techOffers.length)} of {techOffers.length}
