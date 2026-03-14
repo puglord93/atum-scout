@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
 
   // Check for auth cookie
   const auth = request.cookies.get('atum_auth')?.value;
-  if (auth === process.env.SITE_PASSWORD) {
+  if (auth === 'atum_access_granted') {
     return NextResponse.next();
   }
 

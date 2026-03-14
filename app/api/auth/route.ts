@@ -5,7 +5,8 @@ export async function POST(request: Request) {
 
   if (password === process.env.SITE_PASSWORD) {
     const response = NextResponse.json({ success: true });
-    response.cookies.set('atum_auth', password, {
+    // Use a fixed token — middleware (Edge Runtime) can't read process.env at runtime
+    response.cookies.set('atum_auth', 'atum_access_granted', {
       httpOnly: true,
       secure: false, // HTTP only — set to true when HTTPS is configured
       sameSite: 'lax',

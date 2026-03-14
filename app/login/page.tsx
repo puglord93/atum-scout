@@ -52,14 +52,9 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="border-t border-gray-100 mb-6" />
-
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wider">
-                  Access password
-                </label>
                 <input
                   type="password"
                   placeholder="Enter password"
