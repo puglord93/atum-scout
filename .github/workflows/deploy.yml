@@ -21,6 +21,8 @@ jobs:
             cd ~/atum-scout
             git pull origin main
             export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
+            npx prisma migrate deploy
+            npx prisma generate
             npm run build
             pm2 restart atum-scout --update-env
             echo "✅ Deploy complete"
