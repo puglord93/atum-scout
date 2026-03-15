@@ -453,8 +453,8 @@ function AddInputModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg border border-gray-200 w-full max-w-xl shadow-lg">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg border border-gray-200 w-full max-w-xl shadow-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-sm font-semibold text-gray-900">Add Input</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -463,7 +463,7 @@ function AddInputModal({
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {/* Type */}
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Type</label>
@@ -1364,7 +1364,7 @@ export default function VentureWorkspacePage({
         <div className="flex gap-6 items-start">
           {/* Sidebar */}
           <aside className="hidden lg:flex flex-col w-60 flex-shrink-0 sticky top-[calc(3.5rem+1rem)]">
-            <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <div className="bg-white border border-gray-200 rounded-lg p-5 overflow-y-auto max-h-[calc(100vh-6rem)]">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Sections</p>
               <nav className="space-y-0.5">
                 {navItems.map(item => {
