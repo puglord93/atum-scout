@@ -3,6 +3,111 @@
 import { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 
+// ─── Simple Markdown Renderer ────────────────────────────────────────────────
+// Handles: ##/### headings, **bold**, `code`, [link](url), bullet lists, blank-line paragraphs
+
+function MarkdownContent({ text }: { text: string }) {
+  // Split into blocks (paragraphs / headings / lists) separated by blank lines
+  const lines = text.split('\n');
+  const blocks: React.ReactNode[] = [];
+  let listItems: string[] = [];
+  let key = 0;
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      blocks.push(
+        <ul key={key++} className="list-disc pl-5 space-y-1 my-2">
+          {listItems.map((item, i) => (
+            <li key={i} className="text-sm text-gray-700 leading-relaxed">
+              <InlineMarkdown text={item} />
+            </li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Bullet list items
+    if (/^[-*]\s/.test(line)) {
+      listItems.push(line.replace(/^[-*]\s/, ''));
+      continue;
+    }
+
+    // Flush pending list
+    flushList();
+
+    // Skip blank lines (used as separators)
+    if (line.trim() === '') continue;
+
+    // ### heading
+    if (/^###\s/.test(line)) {
+      blocks.push(
+        <h4 key={key++} className="text-sm font-semibold text-gray-900 mt-4 mb-1">
+          <InlineMarkdown text={line.replace(/^###\s/, '')} />
+        </h4>
+      );
+      continue;
+    }
+
+    // ## heading
+    if (/^##\s/.test(line)) {
+      blocks.push(
+        <h3 key={key++} className="text-sm font-semibold text-gray-800 mt-5 mb-1 uppercase tracking-wide text-xs">
+          <InlineMarkdown text={line.replace(/^##\s/, '')} />
+        </h3>
+      );
+      continue;
+    }
+
+    // Regular paragraph
+    blocks.push(
+      <p key={key++} className="text-sm text-gray-700 leading-relaxed">
+        <InlineMarkdown text={line} />
+      </p>
+    );
+  }
+
+  flushList();
+
+  return <div className="space-y-2">{blocks}</div>;
+}
+
+function InlineMarkdown({ text }: { text: string }) {
+  // Parse inline: **bold**, `code`, [text](url)
+  const parts: React.ReactNode[] = [];
+  const regex = /(\*\*(.+?)\*\*|`(.+?)`|\[(.+?)\]\((https?:\/\/[^\s)]+)\))/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Text before match
+    if (match.index > last) parts.push(text.slice(last, match.index));
+
+    if (match[2]) {
+      // **bold**
+      parts.push(<strong key={match.index} className="font-semibold text-gray-900">{match[2]}</strong>);
+    } else if (match[3]) {
+      // `code`
+      parts.push(<code key={match.index} className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono text-gray-800">{match[3]}</code>);
+    } else if (match[4] && match[5]) {
+      // [text](url)
+      parts.push(
+        <a key={match.index} href={match[5]} target="_blank" rel="noopener noreferrer" className="text-[#F0602C] underline underline-offset-2 hover:opacity-75">
+          {match[4]}
+        </a>
+      );
+    }
+    last = match.index + match[0].length;
+  }
+
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type VentureInput = {
@@ -498,7 +603,7 @@ function SectionBlock({
           </div>
         </div>
       ) : section.content ? (
-        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{section.content}</div>
+        <MarkdownContent text={section.content} />
       ) : analyzing ? (
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -582,8 +687,8 @@ function QuestionsSection({
   return (
     <div id="section-questions" className="py-8 border-b border-gray-100">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">Open Questions</h2>
-        <span className="text-xs text-gray-400 font-mono">{openCount} open · {answeredCount} answered</span>
+        <h2 className="text-base font-semibold text-gray-900">Assumptions to Validate</h2>
+        <span className="text-xs text-gray-400 font-mono">{openCount} unvalidated · {answeredCount} validated</span>
       </div>
 
       <div className="space-y-3 mb-4">
@@ -612,13 +717,13 @@ function QuestionsSection({
                   {q.question}
                 </p>
                 {q.answered && q.answer && (
-                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">Answer: {q.answer}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">Validation: {q.answer}</p>
                 )}
                 {!q.answered && (
                   <div className="mt-2 flex items-start gap-2">
                     <textarea
                       rows={2}
-                      placeholder="Add answer..."
+                      placeholder="How was this validated? What did you find?"
                       value={answerInputs[q.id] || ''}
                       onChange={e => setAnswerInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
                       className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#F0602C] resize-none text-gray-700"
@@ -982,7 +1087,7 @@ export default function VentureWorkspacePage({
   const sectionMap = Object.fromEntries(venture.sections.map(s => [s.key, s]));
   const navItems = [
     ...SECTION_KEYS.map(k => ({ key: k, label: SECTION_LABELS[k] })),
-    { key: 'questions', label: 'Questions' },
+    { key: 'questions', label: 'Assumptions' },
     { key: 'actions', label: 'Actions' },
   ];
 

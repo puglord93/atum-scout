@@ -6,17 +6,47 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SECTION_PROMPTS: Record<string, string> = {
   summary:
-    'Write a concise 2-3 paragraph executive summary of this technology opportunity as a venture case. Cover what the technology is, who is behind it, and why it\'s interesting.',
+    `Write a sharp 2-3 paragraph summary of this venture case. Be direct: what does this technology actually do (in plain terms), who built it and why that matters, and what's the honest case for it as a venture. Don't lead with hype — lead with the most interesting or surprising thing about it. Call out the key tension or unresolved question upfront. No filler phrases like "transformative opportunity" or "revolutionary technology".`,
+
   market_context:
-    'Analyze the market context and industry trends for this technology. Cover: (1) the overall market landscape and size, (2) key macro tailwinds, (3) why the timing is right now. Be specific and quantitative where possible.',
+    `Analyze the market context for this technology. Be specific:
+- What is the actual problem this market has today, and why hasn't it been solved?
+- What's driving urgency now (regulation, cost shifts, new infra, etc.)?
+- What's the rough market size and growth rate? Cite your sources inline (e.g. "per Mordor Intelligence, 2023"). Don't make up numbers — if you're estimating, say so and show your logic.
+- What's the one macro trend that most strengthens the case for this?
+Avoid generic "the market is large and growing" statements. If you don't have enough data to be specific, say what's unknown.`,
+
   use_case:
-    'Identify and analyze the most viable use cases for this technology. For each use case, describe: the target industry/customer, the specific problem solved, and the strength of the fit. Rank by attractiveness.',
+    `Identify the 2-4 most viable commercial use cases for this technology. For each:
+- **Who** is the buyer (be specific — not "industrial companies" but "procurement teams at Tier 1 auto manufacturers")
+- **What problem** does it solve for them, in economic terms
+- **Why this technology** over what they do today
+- **Signal of real demand** — is there evidence customers actually want this (pilots, analogues, regulatory pressure)?
+Rank them. Flag if the top use case has a real customer vs. is speculative.`,
+
   vs_existing:
-    'Compare this technology against existing methods and alternatives. For each comparison: (1) what is being displaced, (2) the clear performance/cost benefit, (3) what the switching cost looks like for adopters.',
+    `Compare this technology against realistic alternatives. For each incumbent/alternative:
+- What it is and why buyers currently use it
+- Where this technology wins (performance, cost, scalability, regulatory fit) — be quantitative where possible
+- Where this technology is worse or unproven
+- What the switching friction looks like (procurement cycles, integration cost, re-qualification)
+Don't just list advantages. The honest comparison — including weaknesses — is more useful than a one-sided pitch.`,
+
   unit_economics:
-    'Analyze the unit economics potential for a venture built on this technology. Cover: cost structure, value capture mechanism, pricing model options, and what needs to be true for attractive unit economics.',
+    `Analyze the unit economics potential. Work through:
+- What does it cost to produce/deliver one unit of value?
+- What can a customer reasonably be charged, and what's the value-based anchor?
+- What's the margin structure if this scales (what costs fall, what stays fixed)?
+- What business model fits best — and what assumptions does it rest on?
+Be honest about what's unknown. If the cost structure is unclear from available info, say so and identify what needs to be true for this to work.`,
+
   market_sizing:
-    'Provide a market sizing analysis. Include: TAM estimate with methodology, SAM (serviceable market), SOM (realistic capture in 3-5 years), and identification of the clearest beachhead market to enter first.',
+    `Do a grounded market sizing. Show your work:
+- **TAM**: What's the total addressable market? Cite sources for any figures (e.g. "Grand View Research, 2024"). If you're building bottom-up, show the logic.
+- **SAM**: What subset is actually reachable given geography, go-to-market, and technology readiness?
+- **SOM**: What's a realistic 3-5 year capture? Anchor this to comparable venture trajectories if possible.
+- **Beachhead**: Which specific segment should be entered first, and why?
+Don't pad with multiple overlapping market definitions. Pick the most defensible numbers and be clear about confidence level.`,
 };
 
 const SECTION_LABELS: Record<string, string> = {
@@ -111,7 +141,7 @@ export async function POST(
       const isFirstSection = sectionKey === keysToAnalyze[0];
       const addQuestionsPrompt =
         shouldExtractQuestions && isFirstSection
-          ? '\n\nAdditionally, return a JSON array of 4-6 critical open questions that still need to be validated, in this format at the end of your response: QUESTIONS_JSON:["question1", "question2", ...]'
+          ? '\n\nAdditionally, return a JSON array of 4-6 key assumptions that must hold true for this venture to work — things currently unvalidated that could kill or reshape the thesis if wrong. Frame each as a testable hypothesis (e.g. "Customers will pay a 30% premium over incumbent Y for benefit Z"). Return them at the end in this exact format: QUESTIONS_JSON:["assumption1", "assumption2", ...]'
           : '';
 
       const userMessage = `${context}\n\n---\n\nTASK: ${prompt}${addQuestionsPrompt}`;
@@ -122,7 +152,7 @@ export async function POST(
           {
             role: 'system',
             content:
-              'You are an expert venture analyst helping evaluate deep-tech opportunities for ATUM Ventures, a venture builder in Singapore focused on Advanced Manufacturing, Biotech/Medtech, and Energy/Climate. Provide rigorous, evidence-based analysis.',
+              `You are a rigorous venture analyst at ATUM Ventures, a deep-tech venture builder in Singapore (focus: Advanced Manufacturing, Biotech/Medtech, Energy/Climate). Your job is to produce sharp, honest analysis — not pitch decks. Write like a thoughtful analyst, not a consultant. Use plain language. Be direct about uncertainty. Quantify claims and cite sources where you have them. Call out gaps, weak assumptions, and risks. Avoid corporate filler phrases. Format your response in clean markdown: use **bold** for emphasis, ## for sub-sections if needed, and bullet lists for parallel items. Do not use excessive headers.`,
           },
           { role: 'user', content: userMessage },
         ],
