@@ -980,6 +980,8 @@ function ActionsSection({
   const [newAction, setNewAction] = useState('');
   const [hovered, setHovered] = useState<number | null>(null);
   const [suggestingActions, setSuggestingActions] = useState(false);
+  const [editingActionId, setEditingActionId] = useState<number | null>(null);
+  const [editActionText, setEditActionText] = useState('');
 
   const openCount = actions.filter(a => !a.done).length;
 
@@ -1031,6 +1033,24 @@ function ActionsSection({
     }
   };
 
+  const startEditAction = (a: VentureAction) => {
+    setEditingActionId(a.id);
+    setEditActionText(a.text);
+  };
+
+  const saveEditAction = async (aId: number) => {
+    const text = editActionText.trim();
+    if (!text) { setEditingActionId(null); return; }
+    const res = await fetch(`/api/ventures/${ventureId}/actions/${aId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    if (data.success) onUpdate(actions.map(a => a.id === aId ? data.data : a));
+    setEditingActionId(null);
+  };
+
   return (
     <div id="section-actions" className="py-8">
       <div className="flex items-center justify-between mb-4">
@@ -1073,6 +1093,7 @@ function ActionsSection({
           >
             <button
               onClick={() => toggleDone(a)}
+              disabled={editingActionId === a.id}
               className={`w-4 h-4 rounded border flex-shrink-0 transition flex items-center justify-center ${
                 a.done ? 'bg-gray-400 border-gray-400 text-white' : 'border-gray-300 hover:border-gray-500'
               }`}
@@ -1083,18 +1104,52 @@ function ActionsSection({
                 </svg>
               )}
             </button>
-            <span className={`text-sm flex-1 ${a.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-              {a.text}
-            </span>
-            {hovered === a.id && (
-              <button
-                onClick={() => deleteAction(a.id)}
-                className="text-gray-300 hover:text-red-400 transition flex-shrink-0"
+
+            {editingActionId === a.id ? (
+              <input
+                autoFocus
+                type="text"
+                value={editActionText}
+                onChange={e => setEditActionText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveEditAction(a.id);
+                  if (e.key === 'Escape') setEditingActionId(null);
+                }}
+                onBlur={() => saveEditAction(a.id)}
+                className="flex-1 text-sm border-b border-[#F0602C] outline-none bg-transparent py-0.5 text-gray-800"
+              />
+            ) : (
+              <span
+                className={`text-sm flex-1 ${a.done ? 'line-through text-gray-400' : 'text-gray-800'}`}
+                onDoubleClick={() => !a.done && startEditAction(a)}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                {a.text}
+              </span>
+            )}
+
+            {hovered === a.id && editingActionId !== a.id && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {!a.done && (
+                  <button
+                    onClick={() => startEditAction(a)}
+                    className="text-gray-300 hover:text-gray-500 transition"
+                    title="Edit"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={() => deleteAction(a.id)}
+                  className="text-gray-300 hover:text-red-400 transition"
+                  title="Delete"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             )}
           </div>
         ))}

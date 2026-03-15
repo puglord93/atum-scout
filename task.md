@@ -81,4 +81,17 @@
   - Action Items — add, toggle done
   - Re-analyze with answered questions trigger
   - "Ventures" nav link added (desktop + mobile hamburger)
-  - Future: Layout C (Validation Board) toggle planned as next sprint
+  - Action items — inline edit (click pencil icon or double-click text), Enter to save, Escape to cancel
+  - Assumptions — priority badges (critical/high/medium), sorted by priority, clear all button
+  - AI-suggested actions from unvalidated assumptions
+  - Methodology info panels (ⓘ) per section — why/how to read/red flag
+  - Mobile responsive — scrollable section nav pills, icon-only analyze button, wrapping title
+  - Auto-deploy via GitHub Actions on every push to main
+
+## 🔜 Next Up
+
+- [ ] Layout C — Validation Board view for ventures (kanban-style assumption tracking)
+- [ ] Action edit (done ✅ above)
+- [ ] Mobile responsiveness for researchers/tech-offers tables
+- [ ] Notes on venture cases
+- [ ] Export venture analysis to PDF/doc
