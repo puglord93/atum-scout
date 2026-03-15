@@ -722,10 +722,10 @@ function SectionBlock({
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">How to read it</p>
             <p className="text-xs text-gray-600 leading-relaxed">{methodology.howToRead}</p>
           </div>
-          <div className="flex gap-2">
-            <span className="text-xs font-semibold text-red-500 uppercase tracking-wide flex-shrink-0 mt-0.5">Red flag</span>
-            <p className="text-xs text-gray-600 leading-relaxed">{methodology.redFlag}</p>
-          </div>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            <span className="font-semibold text-red-500 uppercase tracking-wide mr-1.5">Red flag</span>
+            {methodology.redFlag}
+          </p>
         </div>
       )}
 
@@ -1169,7 +1169,9 @@ export default function VentureWorkspacePage({
   const scrollToSection = (key: string) => {
     const el = document.getElementById(`section-${key}`);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const headerOffset = 80; // fixed nav height + breathing room
+      const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+      window.scrollTo({ top, behavior: 'smooth' });
       setActiveSection(key);
     }
   };
