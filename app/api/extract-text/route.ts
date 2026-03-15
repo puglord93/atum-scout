@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const mode = formData.get('mode') as string | null; // 'text' or 'vision'
 
     if (!file) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
@@ -11,15 +15,18 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const filename = file.name.toLowerCase();
+
     let text = '';
 
-    if (filename.endsWith('.pdf')) {
+    if (mode === 'vision' && filename.endsWith('.pdf')) {
+      // AI Vision mode: send PDF directly to GPT-4o via Responses API
+      text = await extractWithVision(buffer, file.name);
+    } else if (filename.endsWith('.pdf')) {
+      // Standard text extraction
       text = await extractPdf(buffer);
     } else if (
-      filename.endsWith('.pptx') ||
-      filename.endsWith('.ppt') ||
-      filename.endsWith('.docx') ||
-      filename.endsWith('.doc')
+      filename.endsWith('.pptx') || filename.endsWith('.ppt') ||
+      filename.endsWith('.docx') || filename.endsWith('.doc')
     ) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const officeParser = require('officeparser');
@@ -31,15 +38,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Clean up extracted text
-    text = text
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    // Clean up
+    text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 
     if (!text || text.length < 20) {
       return NextResponse.json(
-        { success: false, error: 'No readable text found in file. It may be a scanned image PDF — try copying text manually.' },
+        { success: false, error: 'No readable text found. The file may be a scanned image — try pasting content manually.' },
         { status: 422 }
       );
     }
@@ -55,8 +59,44 @@ export async function POST(request: Request) {
   }
 }
 
+async function extractWithVision(buffer: Buffer, filename: string): Promise<string> {
+  const base64 = buffer.toString('base64');
+  // Use OpenAI Responses API which natively supports PDF input
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await (openai.responses.create as (params: any) => Promise<any>)({
+    model: 'gpt-4o',
+    input: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_file',
+            filename,
+            file_data: `data:application/pdf;base64,${base64}`,
+          },
+          {
+            type: 'input_text',
+            text: `You are analyzing a research/technology deck or document for venture analysis purposes. Extract ALL content comprehensively:
+
+1. All text exactly as written (titles, headings, body text, bullet points, captions, labels, numbers)
+2. For each diagram/flowchart: describe what it shows, list each node/step, describe the connections and direction of arrows
+3. For each chart/graph: describe what data it shows, key metrics, axis labels, trends
+4. For tables: include headers and key data rows
+5. For images: describe what they depict and their relevance
+6. Preserve the structure slide-by-slide or section-by-section, labeling each clearly (e.g. "SLIDE 1:", "SLIDE 2:")
+
+Be thorough — this extraction will be used to analyze the venture potential of this technology. Missing diagrams or process flows would result in incomplete analysis.`,
+          },
+        ],
+      },
+    ],
+  });
+
+  return response.output_text ?? '';
+}
+
 async function extractPdf(buffer: Buffer): Promise<string> {
-  // Try unpdf first (PDF.js based, best for Next.js)
+  // Try unpdf first (PDF.js based, designed for Next.js/serverless)
   try {
     const { extractText, getDocumentProxy } = await import('unpdf');
     const uint8 = new Uint8Array(buffer);
@@ -67,7 +107,7 @@ async function extractPdf(buffer: Buffer): Promise<string> {
     console.warn('unpdf failed, trying fallback:', e instanceof Error ? e.message : e);
   }
 
-  // Fallback: pdf-parse lib (bypasses the broken require wrapper)
+  // Fallback: pdf-parse lib
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParse = require('pdf-parse/lib/pdf-parse.js');
@@ -77,5 +117,5 @@ async function extractPdf(buffer: Buffer): Promise<string> {
     console.warn('pdf-parse fallback failed:', e instanceof Error ? e.message : e);
   }
 
-  throw new Error('Could not extract text from PDF. It may be a scanned/image-only PDF.');
+  throw new Error('Could not extract text from PDF.');
 }

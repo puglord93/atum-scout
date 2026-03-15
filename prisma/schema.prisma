@@ -127,6 +127,7 @@ model VentureInput {
   type          String
   label         String
   content       String
+  inputDate     DateTime    @default(now())
   createdAt     DateTime    @default(now())
 }
 

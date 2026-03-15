@@ -39,7 +39,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { type, label, content } = body;
+    const { type, label, content, inputDate } = body;
 
     if (!type?.trim() || !label?.trim() || !content?.trim()) {
       return NextResponse.json(
@@ -54,6 +54,7 @@ export async function POST(
         type,
         label,
         content,
+        ...(inputDate ? { inputDate: new Date(inputDate) } : {}),
       },
     });
 

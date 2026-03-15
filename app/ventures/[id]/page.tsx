@@ -10,6 +10,7 @@ type VentureInput = {
   type: string;
   label: string;
   content: string;
+  inputDate: string | null;
   createdAt: string;
 };
 
@@ -152,6 +153,7 @@ function AddInputModal({
 }) {
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+  const todayISO = today.toISOString().split('T')[0]; // "2026-03-15"
 
   const [type, setType] = useState('call_notes');
   const [label, setLabel] = useState(`Call — ${dateStr}`);
@@ -160,6 +162,8 @@ function AddInputModal({
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState('');
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [inputDate, setInputDate] = useState(todayISO);
+  const [visionMode, setVisionMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isFileType = FILE_UPLOAD_TYPES.includes(type);
@@ -186,6 +190,7 @@ function AddInputModal({
     try {
       const fd = new FormData();
       fd.append('file', file);
+      if (visionMode) fd.append('mode', 'vision');
       const res = await fetch('/api/extract-text', { method: 'POST', body: fd });
       const data = await res.json();
       if (data.success) {
@@ -209,7 +214,7 @@ function AddInputModal({
       const res = await fetch(`/api/ventures/${ventureId}/inputs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, label, content }),
+        body: JSON.stringify({ type, label, content, inputDate }),
       });
       const data = await res.json();
       if (data.success) {
@@ -279,7 +284,9 @@ function AddInputModal({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span className="text-sm text-gray-500">Extracting text from {uploadedFile}…</span>
+                  <span className="text-sm text-gray-500">
+                    {visionMode ? `AI analyzing ${uploadedFile}… (15–30s)` : `Extracting text from ${uploadedFile}…`}
+                  </span>
                 </div>
               ) : (
                 <div className="w-full border border-green-200 bg-green-50 rounded-lg px-4 py-3 flex items-center justify-between">
@@ -302,8 +309,34 @@ function AddInputModal({
               {extractError && (
                 <p className="text-xs text-red-500 mt-1.5">{extractError}</p>
               )}
+
+              {/* AI Vision toggle */}
+              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded border border-gray-200 mt-2">
+                <div>
+                  <span className="text-xs font-medium text-gray-700">AI Vision extraction</span>
+                  <span className="text-xs text-gray-400 ml-1.5">— reads diagrams, charts &amp; visual layout</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setVisionMode(v => !v); setContent(''); setUploadedFile(null); setExtractError(''); }}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${visionMode ? 'bg-[#F0602C]' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${visionMode ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
             </div>
           )}
+
+          {/* Date */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Date</label>
+            <input
+              type="date"
+              value={inputDate}
+              onChange={e => setInputDate(e.target.value)}
+              className="w-full h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+            />
+          </div>
 
           {/* Label */}
           <div>
@@ -774,6 +807,7 @@ export default function VentureWorkspacePage({
   const [editingInput, setEditingInput] = useState(false);
   const [editInputLabel, setEditInputLabel] = useState('');
   const [editInputContent, setEditInputContent] = useState('');
+  const [editInputDate, setEditInputDate] = useState('');
   const [savingInput, setSavingInput] = useState(false);
 
   // Active sidebar section
@@ -901,10 +935,10 @@ export default function VentureWorkspacePage({
     const res = await fetch(`/api/ventures/${ventureId}/inputs/${viewingInput.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label: editInputLabel, content: editInputContent }),
+      body: JSON.stringify({ label: editInputLabel, content: editInputContent, inputDate: editInputDate }),
     });
     if (res.ok) {
-      const updated = { ...viewingInput, label: editInputLabel, content: editInputContent };
+      const updated = { ...viewingInput, label: editInputLabel, content: editInputContent, inputDate: editInputDate };
       setVenture(v => v ? { ...v, inputs: v.inputs.map(i => i.id === viewingInput.id ? updated : i) } : v);
       setViewingInput(updated);
       setEditingInput(false);
@@ -1108,12 +1142,23 @@ export default function VentureWorkspacePage({
                 {venture.inputs.length === 0 ? (
                   <p className="text-xs text-gray-400 italic">No inputs yet</p>
                 ) : (
-                  venture.inputs.map(input => (
+                  [...venture.inputs].sort((a, b) => {
+                    const dateA = a.inputDate ? new Date(a.inputDate).getTime() : new Date(a.createdAt).getTime();
+                    const dateB = b.inputDate ? new Date(b.inputDate).getTime() : new Date(b.createdAt).getTime();
+                    return dateA - dateB; // ascending: oldest first
+                  }).map(input => (
                     <div key={input.id} className="group flex items-center gap-1.5 py-1.5 px-2 rounded hover:bg-gray-50 transition cursor-pointer"
                       onClick={() => setViewingInput(input)}
                     >
                       {inputIcon(input.type)}
-                      <span className="text-xs text-gray-600 truncate flex-1" title={input.label}>{input.label}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-gray-600 truncate block" title={input.label}>{input.label}</span>
+                        {(input.inputDate || input.createdAt) && (
+                          <span className="text-xs text-gray-400 font-mono">
+                            {formatDate(input.inputDate || input.createdAt)}
+                          </span>
+                        )}
+                      </div>
                       <button
                         onClick={e => { e.stopPropagation(); handleDeleteInput(input.id); }}
                         className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition flex-shrink-0"
@@ -1202,13 +1247,18 @@ export default function VentureWorkspacePage({
               <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                 {!editingInput && (
                   <button
-                    onClick={() => { setEditingInput(true); setEditInputLabel(viewingInput.label); setEditInputContent(viewingInput.content); }}
+                    onClick={() => {
+                      setEditingInput(true);
+                      setEditInputLabel(viewingInput.label);
+                      setEditInputContent(viewingInput.content);
+                      setEditInputDate(viewingInput.inputDate ? new Date(viewingInput.inputDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+                    }}
                     className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded px-2 py-1 transition"
                   >
                     Edit
                   </button>
                 )}
-                <span className="text-xs text-gray-400">{new Date(viewingInput.createdAt).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <span className="text-xs text-gray-400">{formatDate(viewingInput.inputDate || viewingInput.createdAt)}</span>
                 <button onClick={() => { setViewingInput(null); setEditingInput(false); }} className="text-gray-400 hover:text-gray-600 transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1218,11 +1268,22 @@ export default function VentureWorkspacePage({
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               {editingInput ? (
-                <textarea
-                  className="w-full h-64 text-sm text-gray-700 leading-relaxed border border-gray-300 rounded p-3 resize-y focus:outline-none focus:border-gray-400 font-sans"
-                  value={editInputContent}
-                  onChange={e => setEditInputContent(e.target.value)}
-                />
+                <>
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={editInputDate}
+                      onChange={e => setEditInputDate(e.target.value)}
+                      className="w-full h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+                    />
+                  </div>
+                  <textarea
+                    className="w-full h-64 text-sm text-gray-700 leading-relaxed border border-gray-300 rounded p-3 resize-y focus:outline-none focus:border-gray-400 font-sans"
+                    value={editInputContent}
+                    onChange={e => setEditInputContent(e.target.value)}
+                  />
+                </>
               ) : (
                 <pre className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">{viewingInput.content}</pre>
               )}
