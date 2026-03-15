@@ -51,7 +51,14 @@ Three workflows in one tool:
 
 ## 🔜 Next Up (prioritised)
 
-### 1. Validation Board — Layout C
+### 1. Notes on Venture Cases
+Activity log per venture — same pattern as researcher notes.
+- Log types: Note / Call / Email / Meeting / Customer Interview
+- Each entry: date, author, content
+- Captures: customer discovery calls, expert interviews, team decisions, investor conversations, partner discussions
+- Context that doesn't fit into "inputs" (which feed AI analysis) — this is the operational activity log
+
+### 2. Validation Board — Layout C
 Kanban view for assumptions on a venture. Drag assumptions across columns: **Untested → Testing → Validated → Invalidated**. Gives a visual snapshot of where validation work stands on a venture. Toggle between current linear view (Layout A) and board view (Layout C).
 
 ### 2. AI Enrichment
@@ -65,13 +72,6 @@ Per-venture tracking of Singapore deep-tech grant opportunities.
 - Log grants being pursued per venture (Enterprise Singapore, NRF, SEEDS, MAS, etc.)
 - Fields: grant name, amount, stage (Identified / Drafting / Submitted / Approved / Rejected), deadline, notes
 - Dashboard widget showing grant pipeline across all active ventures
-
-### 4. Notes on Venture Cases
-Activity log per venture — same pattern as researcher notes.
-- Log types: Note / Call / Email / Meeting / Customer Interview
-- Each entry: date, author, content
-- Captures: customer discovery calls, expert interviews, team decisions, investor conversations, partner discussions
-- Context that doesn't fit into "inputs" (which feed AI analysis) — this is the operational activity log
 
 ---
 

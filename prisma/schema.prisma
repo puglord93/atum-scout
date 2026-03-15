@@ -116,6 +116,7 @@ model VentureCase {
   sections     VentureSection[]
   questions    VentureQuestion[]
   actions      VentureAction[]
+  notes        VentureNote[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 }
@@ -163,4 +164,16 @@ model VentureAction {
   done          Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+}
+
+model VentureNote {
+  id            Int         @id @default(autoincrement())
+  ventureCaseId Int
+  ventureCase   VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
+  content       String
+  author        String
+  type          String      @default("note") // note | call | email | meeting | customer_interview
+  createdAt     DateTime    @default(now())
+
+  @@map("venture_notes")
 }

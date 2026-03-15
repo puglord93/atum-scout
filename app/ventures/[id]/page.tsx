@@ -1052,7 +1052,7 @@ function ActionsSection({
   };
 
   return (
-    <div id="section-actions" className="py-8">
+    <div id="section-actions" className="py-8 border-b border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Actions</h2>
@@ -1176,6 +1176,186 @@ function ActionsSection({
   );
 }
 
+// ─── Notes Section ────────────────────────────────────────────────────────────
+
+const VENTURE_NOTE_TYPES = [
+  { value: 'note',               label: 'Note',               dot: 'bg-gray-400',   color: 'text-gray-600'   },
+  { value: 'call',               label: 'Call',               dot: 'bg-blue-500',   color: 'text-blue-700'   },
+  { value: 'email',              label: 'Email',              dot: 'bg-violet-500', color: 'text-violet-700' },
+  { value: 'meeting',            label: 'Meeting',            dot: 'bg-amber-500',  color: 'text-amber-700'  },
+  { value: 'customer_interview', label: 'Customer Interview', dot: 'bg-green-500',  color: 'text-green-700'  },
+];
+
+function getVentureNoteType(type: string) {
+  return VENTURE_NOTE_TYPES.find(t => t.value === type) ?? VENTURE_NOTE_TYPES[0];
+}
+
+type VentureNote = {
+  id: number;
+  content: string;
+  author: string;
+  type: string;
+  createdAt: string;
+};
+
+function NotesSection({ ventureId }: { ventureId: number }) {
+  const [notes, setNotes] = useState<VentureNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCompose, setShowCompose] = useState(false);
+  const [noteContent, setNoteContent] = useState('');
+  const [noteAuthor, setNoteAuthor] = useState('');
+  const [noteType, setNoteType] = useState('note');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/ventures/${ventureId}/notes`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setNotes(d.data); })
+      .finally(() => setLoading(false));
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('atum_scout_author') : null;
+    if (saved) setNoteAuthor(saved);
+  }, [ventureId]);
+
+  const handleAdd = async () => {
+    if (!noteContent.trim() || !noteAuthor.trim()) return;
+    setSubmitting(true);
+    const tempId = -Date.now();
+    const optimistic: VentureNote = {
+      id: tempId,
+      content: noteContent.trim(),
+      author: noteAuthor.trim(),
+      type: noteType,
+      createdAt: new Date().toISOString(),
+    };
+    setNotes(prev => [optimistic, ...prev]);
+    setNoteContent('');
+    if (typeof window !== 'undefined') localStorage.setItem('atum_scout_author', noteAuthor.trim());
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: optimistic.content, author: optimistic.author, type: noteType }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotes(prev => prev.map(n => n.id === tempId ? data.data : n));
+      } else {
+        setNotes(prev => prev.filter(n => n.id !== tempId));
+      }
+    } catch {
+      setNotes(prev => prev.filter(n => n.id !== tempId));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (noteId: number) => {
+    const prev = [...notes];
+    setNotes(n => n.filter(x => x.id !== noteId));
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/notes/${noteId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.success) setNotes(prev);
+    } catch {
+      setNotes(prev);
+    }
+  };
+
+  return (
+    <div id="section-notes" className="py-8 border-b border-gray-100">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Activity Log</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{notes.length} entr{notes.length !== 1 ? 'ies' : 'y'}</p>
+        </div>
+        <button
+          onClick={() => setShowCompose(v => !v)}
+          className="text-xs text-gray-500 hover:text-gray-900 transition font-medium"
+        >
+          {showCompose ? 'Cancel' : '+ Add note'}
+        </button>
+      </div>
+
+      {showCompose && (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3.5">
+          <textarea
+            value={noteContent}
+            onChange={e => setNoteContent(e.target.value)}
+            placeholder="Log a call, customer interview, meeting outcome, or general observation..."
+            rows={3}
+            className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-gray-400 bg-white text-gray-900 placeholder-gray-400 resize-none"
+          />
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <select
+              value={noteType}
+              onChange={e => setNoteType(e.target.value)}
+              className="h-8 px-2 text-xs border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white text-gray-700"
+            >
+              {VENTURE_NOTE_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={noteAuthor}
+              onChange={e => setNoteAuthor(e.target.value)}
+              placeholder="Your name"
+              className="flex-1 min-w-[120px] h-8 px-2.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white text-gray-900 placeholder-gray-400"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={submitting || !noteContent.trim() || !noteAuthor.trim()}
+              className="h-8 px-4 text-xs font-medium text-white rounded transition disabled:opacity-40"
+              style={{ backgroundColor: '#F0602C' }}
+            >
+              {submitting ? 'Posting…' : 'Post'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-gray-400 italic">Loading…</p>
+      ) : notes.length === 0 ? (
+        <p className="text-sm text-gray-400 italic">No activity logged yet. Add a note to start tracking this venture.</p>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {notes.map(note => {
+            const nt = getVentureNoteType(note.type);
+            const isTemp = note.id < 0;
+            return (
+              <div key={note.id} className={`group py-3.5 hover:bg-gray-50/50 transition-colors -mx-4 sm:-mx-8 px-4 sm:px-8 ${isTemp ? 'opacity-60' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${nt.dot}`} />
+                    <span className={`text-xs font-medium ${nt.color}`}>{nt.label}</span>
+                    <span className="text-xs text-gray-300">·</span>
+                    <span className="text-xs text-gray-400 font-mono">
+                      {new Date(note.createdAt).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span className="text-xs text-gray-300">·</span>
+                    <span className="text-xs text-gray-500">{note.author}</span>
+                  </div>
+                  {!isTemp && (
+                    <button
+                      onClick={() => handleDelete(note.id)}
+                      className="text-gray-200 hover:text-red-400 transition text-base leading-none flex-shrink-0 opacity-0 group-hover:opacity-100"
+                      title="Delete note"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{note.content}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function VentureWorkspacePage({
@@ -1246,7 +1426,7 @@ export default function VentureWorkspacePage({
   // Track active section via scroll
   useEffect(() => {
     const handleScroll = () => {
-      const allKeys = [...SECTION_KEYS, 'questions', 'actions'];
+      const allKeys = [...SECTION_KEYS, 'questions', 'actions', 'notes'];
       for (const key of [...allKeys].reverse()) {
         const el = document.getElementById(`section-${key}`);
         if (el) {
@@ -1378,6 +1558,7 @@ export default function VentureWorkspacePage({
     ...SECTION_KEYS.map(k => ({ key: k, label: SECTION_LABELS[k] })),
     { key: 'questions', label: 'Assumptions' },
     { key: 'actions', label: 'Actions' },
+    { key: 'notes', label: 'Activity Log' },
   ];
 
   return (
@@ -1632,6 +1813,9 @@ export default function VentureWorkspacePage({
               actions={venture.actions}
               onUpdate={as => setVenture(v => v ? { ...v, actions: as } : v)}
             />
+
+            {/* Activity Log */}
+            <NotesSection ventureId={ventureId} />
           </main>
         </div>
       </div>
