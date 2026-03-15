@@ -90,8 +90,9 @@
 
 ## 🔜 Next Up
 
-- [ ] Layout C — Validation Board view for ventures (kanban-style assumption tracking)
-- [ ] Action edit (done ✅ above)
-- [ ] Mobile responsiveness for researchers/tech-offers tables
-- [ ] Notes on venture cases
-- [ ] Export venture analysis to PDF/doc
+See ROADMAP.md for full prioritised roadmap with descriptions.
+
+- [ ] Validation Board (Layout C) — kanban for venture assumptions (Untested → Testing → Validated → Invalidated)
+- [ ] AI Enrichment — deep enrichment for researchers (publications, patents, web presence) and tech offers (comparable startups, market signals)
+- [ ] Grant Pipeline — per-venture grant tracking (Enterprise Singapore, NRF, SEEDS, etc.)
+- [ ] Notes on Venture Cases — activity log per venture (calls, meetings, customer interviews)

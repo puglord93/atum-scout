@@ -180,9 +180,13 @@ The most complex page. Key features:
 - Neon cold-start means first request can be slow
 - Fuzzy PI matching is simple substring (good enough for now)
 
-### Possible Next Work
-- Mobile responsiveness for researchers/tech-offers tables
-- Export to CSV/Excel
-- Dashboard/home page with stats
-- Pagination for large datasets
-- Bulk actions on ventures list
+### Next Features (confirmed — see ROADMAP.md for full detail)
+1. **Validation Board (Layout C)** — kanban view for venture assumptions: Untested → Testing → Validated → Invalidated. Toggle with current Layout A.
+2. **AI Enrichment** — deep enrichment for researchers (publications, patents, research summary, web presence) and tech offers (comparable startups, market signals, why-now context). "Enrich with AI" button per record.
+3. **Grant Pipeline** — per-venture tracking of SG grants (Enterprise Singapore, NRF, SEEDS, etc.). Fields: name, amount, stage, deadline, notes.
+4. **Notes on Venture Cases** — activity log per venture, same pattern as researcher notes. Types: Note / Call / Email / Meeting / Customer Interview.
+
+### Tabled / KIV
+- Startup Deal Flow (needs internal process defined first)
+- Weekly Sprint View (KIV — overlaps with Notion)
+- Customer Discovery Tracker, Co-founder Tracker, DD Checklist (all tabled)
