@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ATUM Scout
 
-## Getting Started
+Internal venture scouting and building platform for **ATUM Ventures** (Singapore).
 
-First, run the development server:
+Built for the team to source deep-tech from research institutes, evaluate technology offers, and manage the full venture building pipeline — from first contact with a PI to market analysis and assumption validation.
+
+---
+
+## What it does
+
+### 🔬 Tech Sourcing
+- Browse and filter **256 researchers** across Advanced Manufacturing, Biotech/Medtech, Energy/Climate
+- Evaluate **313 tech offers** from NUS, NTU, A\*STAR, and other Singapore research institutions
+- AI-powered outreach email generation (formal/casual, personalised per researcher)
+- CRM pipeline: Identified → Reached Out → Replied → Meeting → POC → Partner
+- Activity log per researcher — calls, emails, meetings, notes
+- Semantic Scholar enrichment — auto-fill h-index, citations, affiliation
+- URL ingest — paste arXiv/DOI link, auto-extracts tech offer details
+
+### 🏗️ Venture Building
+- Venture workspace with **6 AI-analyzed sections**: Summary, Market Context, Use Cases, vs. Existing, Unit Economics, Market Sizing
+- Upload decks, papers, call notes as inputs — AI re-analyzes with every new input
+- **Assumptions to Validate** — AI-extracted, priority-ranked (Critical / High / Medium), mark as validated
+- **AI-suggested actions** based on unvalidated assumptions
+- **Activity Log** per venture — customer interviews, calls, meetings, team notes
+- Per-section methodology panels explaining why each section exists and what to look for
+
+### 📊 Intelligence
+- Dashboard with pipeline funnel, tier breakdown, recently contacted, top researchers
+- AI scoring for tech offers (Market Size, IP Moat, TRL Trajectory, ATUM Fit — 1–10)
+- Bulk actions — multi-select, batch stage update, CSV export
+
+---
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js 15 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS v4 |
+| Database | Neon PostgreSQL (serverless) via Prisma v5 |
+| AI | OpenAI `gpt-4o-mini` (analysis, outreach, scoring) + `gpt-4o` (vision PDF extraction) |
+| Hosting | Oracle Cloud Ubuntu 22.04, Nginx, PM2 |
+| CI/CD | GitHub Actions — push to `main` auto-deploys |
+
+---
+
+## Development
 
 ```bash
+npm install
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires `.env`:
+```
+DATABASE_URL="postgresql://..."
+OPENAI_API_KEY="sk-..."
+OPENAI_MODEL="gpt-4o-mini"
+SITE_PASSWORD="..."
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment
 
-## Learn More
+Every push to `main` triggers an automatic deploy via GitHub Actions:
+`git pull` → `npm install` → `prisma generate` → `npm run build` → `pm2 restart`
 
-To learn more about Next.js, take a look at the following resources:
+Live at: `https://161-118-225-166.sslip.io`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roadmap
 
-## Deploy on Vercel
+See [`ROADMAP.md`](./ROADMAP.md) for the full prioritised feature list.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Next up:** Validation Board (Layout C) · AI Enrichment · Grant Pipeline
