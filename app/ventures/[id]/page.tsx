@@ -16,7 +16,7 @@ function MarkdownContent({ text }: { text: string }) {
   const flushList = () => {
     if (listItems.length > 0) {
       blocks.push(
-        <ul key={key++} className="list-disc pl-5 space-y-1 my-2">
+        <ul key={key++} className="list-disc pl-4 space-y-0.5 my-1.5">
           {listItems.map((item, i) => (
             <li key={i} className="text-sm text-gray-700 leading-relaxed">
               <InlineMarkdown text={item} />
@@ -46,7 +46,7 @@ function MarkdownContent({ text }: { text: string }) {
     // ### heading
     if (/^###\s/.test(line)) {
       blocks.push(
-        <h4 key={key++} className="text-sm font-semibold text-gray-900 mt-4 mb-1">
+        <h4 key={key++} className="text-sm font-medium text-gray-800 mt-4 mb-0.5">
           <InlineMarkdown text={line.replace(/^###\s/, '')} />
         </h4>
       );
@@ -56,7 +56,7 @@ function MarkdownContent({ text }: { text: string }) {
     // ## heading
     if (/^##\s/.test(line)) {
       blocks.push(
-        <h3 key={key++} className="text-sm font-semibold text-gray-800 mt-5 mb-1 uppercase tracking-wide text-xs">
+        <h3 key={key++} className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-5 mb-1">
           <InlineMarkdown text={line.replace(/^##\s/, '')} />
         </h3>
       );
@@ -73,7 +73,7 @@ function MarkdownContent({ text }: { text: string }) {
 
   flushList();
 
-  return <div className="space-y-2">{blocks}</div>;
+  return <div className="space-y-1.5">{blocks}</div>;
 }
 
 function InlineMarkdown({ text }: { text: string }) {
@@ -89,7 +89,7 @@ function InlineMarkdown({ text }: { text: string }) {
 
     if (match[2]) {
       // **bold**
-      parts.push(<strong key={match.index} className="font-semibold text-gray-900">{match[2]}</strong>);
+      parts.push(<strong key={match.index} className="font-medium text-gray-900">{match[2]}</strong>);
     } else if (match[3]) {
       // `code`
       parts.push(<code key={match.index} className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono text-gray-800">{match[3]}</code>);
@@ -1287,7 +1287,7 @@ export default function VentureWorkspacePage({
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-10">
+          <main className="flex-1 min-w-0 max-w-3xl bg-white border border-gray-200 rounded-lg px-8">
             {/* Mobile: add input button */}
             <div className="lg:hidden py-4 border-b border-gray-100">
               <button
