@@ -47,21 +47,28 @@ export async function POST(
       messages: [
         {
           role: 'system',
-          content: `You are a venture builder at ATUM Ventures. Your job is to turn unvalidated assumptions into concrete, specific next actions. Each action should be something a founder or analyst can actually do this week - a specific call, meeting, data pull, or experiment. Not "research the market" but "call 3 aquaculture feed buyers in Singapore to ask X". Be specific about who to contact, what to ask, or what to build/test.`,
+          content: `You are a venture builder at ATUM Ventures. Turn unvalidated assumptions into concrete next actions — things a founder can do this week. Be specific: who to call, what to ask, what to build or test. Return ONLY a JSON array of strings, no other text.`,
         },
         {
           role: 'user',
-          content: `${context}\n\nUnvalidated assumptions (priority order):\n${assumptionsList}\n\nGenerate 5-7 concrete next actions to validate these assumptions, starting with the critical ones. Focus on fastest/cheapest validation methods. Return as a JSON array of strings: ACTIONS_JSON:["action1","action2",...]`,
+          content: `${context}\n\nUnvalidated assumptions (priority order):\n${assumptionsList}\n\nGenerate 5-7 concrete next actions to validate these, starting with critical ones. Focus on fastest/cheapest validation methods (customer calls, desk research, small experiments). Each action should be one specific thing.\n\nReturn ONLY this JSON, no other text:\n["action1","action2",...]`,
         },
       ],
-      temperature: 0.7,
+      temperature: 0.5,
     });
 
-    const content = completion.choices[0].message.content || '';
-    const match = content.match(/ACTIONS_JSON:\s*(\[[\s\S]*?\])/);
-    if (!match) return NextResponse.json({ success: false, error: 'Failed to parse AI response' }, { status: 500 });
+    const raw = completion.choices[0].message.content?.trim() || '';
+    // Strip markdown code fences if present, then parse
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
-    const actionTexts: string[] = JSON.parse(match[1]);
+    let actionTexts: string[];
+    try {
+      actionTexts = JSON.parse(cleaned);
+      if (!Array.isArray(actionTexts)) throw new Error('Not an array');
+    } catch {
+      console.error('Actions parse error. Raw response:', raw);
+      return NextResponse.json({ success: false, error: 'Failed to parse AI response' }, { status: 500 });
+    }
     const created = [];
     for (const text of actionTexts) {
       if (text?.trim()) {
