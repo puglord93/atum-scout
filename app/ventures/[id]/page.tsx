@@ -270,34 +270,34 @@ const SECTION_LABELS: Record<string, string> = {
 
 const SECTION_METHODOLOGY: Record<string, { why: string; howToRead: string; redFlag: string }> = {
   summary: {
-    why: "The summary isn't meant to describe the technology — it's meant to surface the central tension. Every venture has one thing that, if you can't resolve it, nothing else matters. The summary should name it directly. If you can't articulate the tension in a sentence, the venture isn't well-understood yet.",
+    why: "The summary isn't meant to describe the technology, it's meant to surface the central tension. Every venture has one thing that, if we can't resolve it, nothing else matters. We want to name that directly. If we can't articulate the tension in a sentence, the venture isn't well-understood yet.",
     howToRead: "Read this asking: what's the single most interesting thing here, and what's the one thing that could kill it? If you finish the summary and can't answer both, it needs a rewrite.",
-    redFlag: "If the summary leads with what the technology does rather than why it's interesting — it's describing science, not a venture.",
+    redFlag: "If the summary leads with what the technology does rather than why it's interesting - it's describing science, not a venture.",
   },
   market_context: {
-    why: "A large market that isn't changing isn't an opportunity — it's an incumbent's fortress. Before sizing, you need to understand why the market is broken and what's different right now. The 'why now' is the most important signal: what changed in the last 2-3 years that makes this viable when it wasn't before?",
-    howToRead: "The urgency driver is the key paragraph. If the answer is 'nothing changed, the problem just exists' — that's a red flag. Regulatory inflection points, cost curve shifts, and new enabling technologies are the strongest 'why now' signals.",
-    redFlag: "Vague tailwinds like 'sustainability is growing' or 'AI is everywhere' are not why-now signals. Look for something specific: a regulation deadline, a supply shock, a cost threshold crossed.",
+    why: "A large market that isn't changing isn't an opportunity, it's an incumbent's fortress. Before we size it, we need to understand why it's broken and what's different right now. The 'why now' is the most important signal - what changed in the last 2-3 years that makes this viable when it wasn't before?",
+    howToRead: "The urgency driver is the key paragraph. If the answer is 'nothing changed, the problem just exists' - that's a red flag. Regulatory inflection points, cost curve shifts, and new enabling technologies are the strongest 'why now' signals.",
+    redFlag: "Vague tailwinds like 'sustainability is growing' are not why-now signals. Look for something specific: a regulation deadline, a supply shock, a cost threshold crossed.",
   },
   use_case: {
-    why: "Most deep tech can theoretically serve 10 markets. That's a death sentence for a venture — you'll spread thin, win nothing, and confuse every potential partner. This section forces a ranking and a genuine verdict on each use case. The beachhead should have a specific buyer, a quantifiable pain, and at least one signal of real demand.",
-    howToRead: "Focus on the top-ranked use case. Ask: is the buyer specific enough that you could name 5 companies to call? Is there a real signal of demand (not just 'the market is large')? Is the fit actually differentiated, or would any protein source do the same job?",
-    redFlag: "If every use case is ranked 'Primary' or none have a real demand signal — the use case analysis hasn't been validated with actual customer conversations yet.",
+    why: "Most deep tech can theoretically serve 10 markets. That's a death sentence for a venture - we'll spread thin, win nothing, and confuse every potential partner. This section forces us to rank and give a genuine verdict on each use case. The beachhead should have a specific buyer, a quantifiable pain, and at least one real signal of demand.",
+    howToRead: "Focus on the top-ranked use case. Ask: is the buyer specific enough that we could name 5 companies to call right now? Is there a real demand signal beyond 'the market is large'? Is the fit genuinely differentiated, or would any alternative solution do the same job?",
+    redFlag: "If every use case is ranked 'Primary' or none have a real demand signal - the analysis hasn't been validated with actual customer conversations yet.",
   },
   vs_existing: {
-    why: "The honest comparison is what separates a venture-backable technology from interesting science. The question isn't 'is this better?' — it's 'is this better enough, on the dimensions that matter to buyers, to justify switching?' Switching friction is often underestimated: procurement cycles, re-qualification, risk tolerance, and existing supplier relationships all slow adoption.",
-    howToRead: "Look at the 'where this tech loses' column as carefully as the wins. If the technology only wins on sustainability but loses on cost, speed, and reliability — most procurement teams won't move. The switching friction paragraph tells you how long the sales cycle will actually be.",
-    redFlag: "A comparison that only lists advantages and calls everything a 'disadvantage for incumbents' hasn't been stress-tested. Ask: why hasn't a well-resourced competitor already solved this?",
+    why: "The honest comparison is what separates a venture-backable technology from interesting science. The question isn't 'is this better?' - it's 'is this better enough, on the dimensions buyers actually care about, to justify switching?' Switching friction is almost always underestimated: procurement cycles, re-qualification, and existing supplier relationships all slow adoption more than we expect.",
+    howToRead: "Look at the 'where this tech loses' column as carefully as the wins. If the technology only wins on sustainability but loses on cost, speed, and reliability - most procurement teams won't move. The switching friction tells us how long the sales cycle will realistically be.",
+    redFlag: "A comparison that only lists advantages hasn't been stress-tested. Ask: why hasn't a well-resourced competitor already solved this?",
   },
   unit_economics: {
-    why: "This is the earliest stress test of the business model. The goal isn't precision — it's identifying which single assumption, if wrong, kills the venture. CapEx-heavy models need to show a credible path to amortization. Service models need to show margin after delivery costs. If you can't sketch a viable path from the data you have, that's a signal to gather more before going further.",
-    howToRead: "Find the key equation and stress-test one variable at a time. What happens to margin if CapEx is 2× higher? If price is 20% lower than expected? If production yield is half the projection? The venture is only as strong as its weakest assumption.",
-    redFlag: "Unit economics that only work at 'full scale' without a clear path to get there are a red flag. Early-stage viability should be visible even at small initial volumes, or there needs to be a credible subsidy/grant bridge.",
+    why: "This is the earliest stress test of the business model - whether the revenue and cost makes sense from a unit perspective. CapEx-heavy models need to show or convince the buyer that the returns or payback period makes sense economically. If we can't sketch a viable path from the data we have, that's a signal for us to gather more before going further.",
+    howToRead: "Find the key equation and stress-test one variable at a time. What happens to margin if CapEx is 2x higher? If price is 20% lower than expected? If production yield is half the projection? The venture is only as strong as its weakest assumption.",
+    redFlag: "Unit economics that only work at 'full scale' without a clear path to get there are a red flag. Early viability should be visible even at small initial volumes, or there needs to be a credible grant or subsidy bridge.",
   },
   market_sizing: {
-    why: "TAM is for context. SAM is for focus. SOM is the only number that actually matters at pre-seed and seed — and it must be built bottoms-up from what a funded team can actually execute in 3-5 years. Top-down SOM ('we'll capture 1% of a $10B market') is not analysis — it's a placeholder that hides all the real questions about go-to-market, sales cycles, and operational capacity.",
-    howToRead: "The SOM math is the key thing to scrutinize. N customers × revenue per customer = SOM. Ask: is N customers realistic given B2B sales cycles and the need for reference customers? Is the revenue per customer grounded in what buyers have said they'd pay?",
-    redFlag: "Any SOM derived as a percentage of SAM or TAM hasn't been thought through. Also watch for SOM numbers that require the venture to close more customers per year than is realistic for an early-stage B2B team.",
+    why: "TAM is for context. SAM is for focus. SOM is the only number that really matters at pre-seed and seed - and it has to be built bottoms-up from what a funded team can actually execute in 3-5 years. Top-down SOM ('we'll capture 1% of a $10B market') isn't analysis, it's a placeholder that hides all the real questions about go-to-market, sales cycles, and operational capacity.",
+    howToRead: "The SOM math is what to scrutinize. N customers x revenue per customer = SOM. Ask: is N realistic given B2B sales cycles and the need for reference customers? Is the revenue per customer grounded in what buyers have actually said they'd pay?",
+    redFlag: "Any SOM derived as a percentage of SAM or TAM hasn't been thought through. Also watch for SOM numbers that require closing more customers per year than is realistic for an early-stage B2B team.",
   },
 };
 
