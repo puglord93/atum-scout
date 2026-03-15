@@ -79,7 +79,12 @@ One sentence on how you got there.
 What constrains the reachable market: geography, go-to-market, tech readiness, regulation.
 
 **SOM (3-5 year)** — [$ figure]
-What a well-executed venture could realistically capture. Anchor to a comparable if possible.
+Build this bottoms-up, not top-down. Do NOT say "we capture X% of SAM" — that is lazy and always wrong. Instead, reason from operational reality:
+- By Year 3-5, how many customers/sites/units can this venture realistically serve?
+- At what price and what volume per customer?
+- What limits scale: production capacity, sales bandwidth, regulatory approvals, capital?
+Show the math: [N customers] × [avg revenue per customer] = SOM
+The number should feel constrained by what the venture can actually execute, not what the market could theoretically absorb.
 
 **Beachhead**
 Name the specific segment to enter first. Why this one: lowest friction, highest willingness to pay, or clearest path to a reference customer?
