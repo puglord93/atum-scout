@@ -79,12 +79,12 @@ One sentence on how you got there.
 What constrains the reachable market: geography, go-to-market, tech readiness, regulation.
 
 **SOM (3-5 year)** — [$ figure]
-Build this bottoms-up, not top-down. Do NOT say "we capture X% of SAM" — that is lazy and always wrong. Instead, reason from operational reality:
-- By Year 3-5, how many customers/sites/units can this venture realistically serve?
-- At what price and what volume per customer?
-- What limits scale: production capacity, sales bandwidth, regulatory approvals, capital?
+Build this bottoms-up. Do NOT say "we capture X% of SAM" — that is not analysis. Do NOT cite PI or researcher capacity as a constraint — ATUM spins out a fully funded venture with a hired commercial and technical founding team.
+Instead, reason from real execution constraints:
+- By Year 3-5, how many customers/deployments can a well-resourced team realistically close? (Think: B2B sales cycle length, procurement complexity, reference customer requirement)
+- What does each customer pay, and at what volume?
+- What actually limits scale at this stage: regulatory approval timelines, production ramp, customer validation cycles, or capital deployment rate?
 Show the math: [N customers] × [avg revenue per customer] = SOM
-The number should feel constrained by what the venture can actually execute, not what the market could theoretically absorb.
 
 **Beachhead**
 Name the specific segment to enter first. Why this one: lowest friction, highest willingness to pay, or clearest path to a reference customer?
@@ -196,6 +196,8 @@ export async function POST(
             role: 'system',
             content:
               `You are a senior analyst at ATUM Ventures, a deep-tech venture builder in Singapore (Advanced Manufacturing, Biotech/Medtech, Energy/Climate). You think like an operator, not a consultant. Your job: produce analysis that is immediately actionable, not impressive-sounding.
+
+How ATUM builds ventures: The PI/researcher is NOT the founder — they become a technical advisor. ATUM recruits a dedicated founding team: a commercial co-founder (industry background, GTM experience) and a technical co-founder. The venture is funded from day one: pre-seed capital, ESG/deep tech grants (e.g. Enterprise Singapore, NRF), then seed and Series A. So when reasoning about execution constraints, do NOT cite "PI availability" or "research team capacity" — the venture has a hired team, real capital, and a proper operating structure.
 
 Style rules — follow these exactly:
 - Write in analyst shorthand. Short sentences. Direct claims. No throat-clearing openers.
