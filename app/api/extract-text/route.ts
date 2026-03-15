@@ -107,15 +107,5 @@ async function extractPdf(buffer: Buffer): Promise<string> {
     console.warn('unpdf failed, trying fallback:', e instanceof Error ? e.message : e);
   }
 
-  // Fallback: pdf-parse lib
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse/lib/pdf-parse.js');
-    const result = await pdfParse(buffer);
-    if (result.text && result.text.length > 20) return result.text;
-  } catch (e) {
-    console.warn('pdf-parse fallback failed:', e instanceof Error ? e.message : e);
-  }
-
-  throw new Error('Could not extract text from PDF.');
+  throw new Error('Could not extract text from PDF. It may be a scanned/image-only file.');
 }
