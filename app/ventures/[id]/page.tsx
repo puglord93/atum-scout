@@ -181,29 +181,30 @@ function AddInputModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const currentVisionMode = visionMode; // capture at time of call
     setExtractError('');
     setExtracting(true);
     setUploadedFile(file.name);
-    // Auto-update label to filename (without extension)
     setLabel(file.name.replace(/\.[^/.]+$/, '') + ` — ${dateStr}`);
 
     try {
       const fd = new FormData();
       fd.append('file', file);
-      if (visionMode) fd.append('mode', 'vision');
+      if (currentVisionMode) fd.append('mode', 'vision');
       const res = await fetch('/api/extract-text', { method: 'POST', body: fd });
       const data = await res.json();
       if (data.success) {
         setContent(data.text);
       } else {
-        setExtractError(data.error || 'Extraction failed');
-        setUploadedFile(null);
+        setExtractError(data.error || 'Extraction failed — try pasting manually.');
+        // keep uploadedFile set so user sees the filename + error together
       }
-    } catch {
-      setExtractError('Upload failed. Try pasting the content manually.');
-      setUploadedFile(null);
+    } catch (err) {
+      setExtractError(`Upload failed: ${err instanceof Error ? err.message : 'network error'}. Try pasting manually.`);
     } finally {
       setExtracting(false);
+      // reset file input so same file can be re-selected if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -258,6 +259,27 @@ function AddInputModal({
           {/* File upload zone — deck & paper only */}
           {isFileType && (
             <div>
+              {/* AI Vision toggle — shown FIRST so user sets mode before uploading */}
+              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded border border-gray-200 mb-3">
+                <div>
+                  <span className="text-xs font-medium text-gray-700">AI Vision extraction</span>
+                  <span className="text-xs text-gray-400 ml-1.5">— reads diagrams, charts &amp; visual layout</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVisionMode(v => !v);
+                    setContent('');
+                    setUploadedFile(null);
+                    setExtractError('');
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${visionMode ? 'bg-[#F0602C]' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${visionMode ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">File</label>
               <input
                 ref={fileInputRef}
@@ -307,23 +329,8 @@ function AddInputModal({
                 </div>
               )}
               {extractError && (
-                <p className="text-xs text-red-500 mt-1.5">{extractError}</p>
+                <p className="text-xs text-red-500 mt-2 leading-relaxed">{extractError}</p>
               )}
-
-              {/* AI Vision toggle */}
-              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded border border-gray-200 mt-2">
-                <div>
-                  <span className="text-xs font-medium text-gray-700">AI Vision extraction</span>
-                  <span className="text-xs text-gray-400 ml-1.5">— reads diagrams, charts &amp; visual layout</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setVisionMode(v => !v); setContent(''); setUploadedFile(null); setExtractError(''); }}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${visionMode ? 'bg-[#F0602C]' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${visionMode ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
             </div>
           )}
 
