@@ -3,62 +3,151 @@
 import { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 
-// ─── Simple Markdown Renderer ────────────────────────────────────────────────
-// Handles: ##/### headings, **bold**, `code`, [link](url), bullet lists, blank-line paragraphs
+// ─── Markdown Renderer ───────────────────────────────────────────────────────
+// Handles: ###/## headings, **bold**, `code`, [link](url),
+//          bullet lists, numbered lists, tables, blank-line paragraphs,
+//          standalone **bold** lines (treated as sub-headings)
 
 function MarkdownContent({ text }: { text: string }) {
-  // Split into blocks (paragraphs / headings / lists) separated by blank lines
   const lines = text.split('\n');
   const blocks: React.ReactNode[] = [];
-  let listItems: string[] = [];
+  let bulletItems: string[] = [];
+  let numberedItems: Array<{ n: string; text: string }> = [];
+  let tableLines: string[] = [];
   let key = 0;
 
-  const flushList = () => {
-    if (listItems.length > 0) {
-      blocks.push(
-        <ul key={key++} className="list-disc pl-4 space-y-0.5 my-1.5">
-          {listItems.map((item, i) => (
-            <li key={i} className="text-sm text-gray-600 leading-[1.75]">
-              <InlineMarkdown text={item} />
-            </li>
-          ))}
-        </ul>
-      );
-      listItems = [];
-    }
+  const flushBullets = () => {
+    if (bulletItems.length === 0) return;
+    blocks.push(
+      <ul key={key++} className="list-disc pl-4 space-y-1 my-0.5">
+        {bulletItems.map((item, i) => (
+          <li key={i} className="text-sm text-gray-600 leading-[1.7]">
+            <InlineMarkdown text={item} />
+          </li>
+        ))}
+      </ul>
+    );
+    bulletItems = [];
   };
+
+  const flushNumbered = () => {
+    if (numberedItems.length === 0) return;
+    blocks.push(
+      <ol key={key++} className="list-decimal pl-5 space-y-1 my-0.5">
+        {numberedItems.map((item, i) => (
+          <li key={i} className="text-sm text-gray-600 leading-[1.7]">
+            <InlineMarkdown text={item.text} />
+          </li>
+        ))}
+      </ol>
+    );
+    numberedItems = [];
+  };
+
+  const flushTable = () => {
+    if (tableLines.length < 2) {
+      // Not enough lines for a real table — render as paragraphs
+      tableLines.forEach(l => blocks.push(
+        <p key={key++} className="text-sm text-gray-600 leading-[1.7]"><InlineMarkdown text={l} /></p>
+      ));
+      tableLines = [];
+      return;
+    }
+    const parseRow = (row: string) =>
+      row.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
+
+    const headerCells = parseRow(tableLines[0]);
+    // tableLines[1] is the separator row (---|---), skip it
+    const dataRows = tableLines.slice(2).map(parseRow);
+
+    blocks.push(
+      <div key={key++} className="overflow-x-auto my-2">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-gray-200">
+              {headerCells.map((cell, ci) => (
+                <th key={ci} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 pr-4">
+                  <InlineMarkdown text={cell} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, ri) => (
+              <tr key={ri} className="border-b border-gray-100 last:border-b-0">
+                {row.map((cell, ci) => (
+                  <td key={ci} className="py-2 pr-4 text-gray-600 align-top">
+                    <InlineMarkdown text={cell} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+    tableLines = [];
+  };
+
+  const flushAll = () => { flushBullets(); flushNumbered(); flushTable(); };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Bullet list items
-    if (/^[-*]\s/.test(line)) {
-      listItems.push(line.replace(/^[-*]\s/, ''));
+    // Table row
+    if (/^\|/.test(line)) {
+      flushBullets(); flushNumbered();
+      tableLines.push(line);
       continue;
     }
 
-    // Flush pending list
-    flushList();
+    // Bullet list
+    if (/^[-*] /.test(line)) {
+      flushNumbered(); flushTable();
+      bulletItems.push(line.replace(/^[-*] /, ''));
+      continue;
+    }
 
-    // Skip blank lines (used as separators)
+    // Numbered list
+    const numMatch = line.match(/^(\d+)\.\s+(.*)/);
+    if (numMatch) {
+      flushBullets(); flushTable();
+      numberedItems.push({ n: numMatch[1], text: numMatch[2] });
+      continue;
+    }
+
+    // Flush pending lists/tables before other block types
+    flushAll();
+
+    // Skip blank lines
     if (line.trim() === '') continue;
 
-    // ### heading
+    // ### sub-heading
     if (/^###\s/.test(line)) {
       blocks.push(
-        <h4 key={key++} className="text-sm font-medium text-gray-800 mt-4 mb-0.5">
-          <InlineMarkdown text={line.replace(/^###\s/, '')} />
+        <h4 key={key++} className="text-sm font-semibold text-gray-800 mt-5 mb-1">
+          <InlineMarkdown text={line.replace(/^###\s+/, '')} />
         </h4>
       );
       continue;
     }
 
-    // ## heading
+    // ## section label
     if (/^##\s/.test(line)) {
       blocks.push(
-        <h3 key={key++} className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-5 mb-1">
-          <InlineMarkdown text={line.replace(/^##\s/, '')} />
+        <h3 key={key++} className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-5 mb-1">
+          <InlineMarkdown text={line.replace(/^##\s+/, '')} />
         </h3>
+      );
+      continue;
+    }
+
+    // Standalone **bold line** — treat as a sub-heading (GPT-4o uses this pattern)
+    if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
+      blocks.push(
+        <p key={key++} className="text-sm font-semibold text-gray-800 mt-4 mb-0.5">
+          {line.trim().replace(/^\*\*|\*\*$/g, '')}
+        </p>
       );
       continue;
     }
@@ -71,32 +160,27 @@ function MarkdownContent({ text }: { text: string }) {
     );
   }
 
-  flushList();
+  flushAll();
 
-  return <div className="space-y-3">{blocks}</div>;
+  return <div className="space-y-2.5">{blocks}</div>;
 }
 
 function InlineMarkdown({ text }: { text: string }) {
-  // Parse inline: **bold**, `code`, [text](url)
   const parts: React.ReactNode[] = [];
   const regex = /(\*\*(.+?)\*\*|`(.+?)`|\[(.+?)\]\((https?:\/\/[^\s)]+)\))/g;
   let last = 0;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
-    // Text before match
     if (match.index > last) parts.push(text.slice(last, match.index));
-
     if (match[2]) {
-      // **bold**
-      parts.push(<strong key={match.index} className="font-medium text-gray-900">{match[2]}</strong>);
+      parts.push(<strong key={match.index} className="font-semibold text-gray-900">{match[2]}</strong>);
     } else if (match[3]) {
-      // `code`
       parts.push(<code key={match.index} className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono text-gray-800">{match[3]}</code>);
     } else if (match[4] && match[5]) {
-      // [text](url)
       parts.push(
-        <a key={match.index} href={match[5]} target="_blank" rel="noopener noreferrer" className="text-[#F0602C] underline underline-offset-2 hover:opacity-75">
+        <a key={match.index} href={match[5]} target="_blank" rel="noopener noreferrer"
+           className="text-[#F0602C] underline underline-offset-2 hover:opacity-75">
           {match[4]}
         </a>
       );

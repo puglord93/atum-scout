@@ -6,47 +6,85 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SECTION_PROMPTS: Record<string, string> = {
   summary:
-    `Write a sharp 2-3 paragraph summary of this venture case. Be direct: what does this technology actually do (in plain terms), who built it and why that matters, and what's the honest case for it as a venture. Don't lead with hype — lead with the most interesting or surprising thing about it. Call out the key tension or unresolved question upfront. No filler phrases like "transformative opportunity" or "revolutionary technology".`,
+    `Write the venture summary. Lead with the single most interesting or surprising thing about this technology — not a definition. Then:
+- What it actually does (one sentence, plain language, no jargon)
+- Who built it and why that gives it credibility (or doesn't)
+- The honest bull case: what has to be true for this to work as a venture
+- The key tension or fatal risk sitting at the center of this — name it directly
+
+No intro sentence. No "this technology presents an opportunity to...". Start with the insight.`,
 
   market_context:
-    `Analyze the market context for this technology. Be specific:
-- What is the actual problem this market has today, and why hasn't it been solved?
-- What's driving urgency now (regulation, cost shifts, new infra, etc.)?
-- What's the rough market size and growth rate? Cite your sources inline (e.g. "per Mordor Intelligence, 2023"). Don't make up numbers — if you're estimating, say so and show your logic.
-- What's the one macro trend that most strengthens the case for this?
-Avoid generic "the market is large and growing" statements. If you don't have enough data to be specific, say what's unknown.`,
+    `Analyze the market context. Structure it as:
+
+**The Problem**
+What's broken in this market today? Be specific about who suffers and what it costs them.
+
+**Why Now**
+What changed recently (regulation, cost curve, new enabling tech, supply shock) that makes this timing different from 5 years ago?
+
+**Market Size**
+Give a number. Show your source (e.g. "Mordor Intelligence, 2023") or your logic if estimating. One TAM figure is better than three vague ranges.
+
+**The Macro Tailwind**
+The single strongest structural trend behind this. One paragraph, no fluff.
+
+If you lack data on any of these, say explicitly what's unknown and why it matters.`,
 
   use_case:
-    `Identify the 2-4 most viable commercial use cases for this technology. For each:
-- **Who** is the buyer (be specific — not "industrial companies" but "procurement teams at Tier 1 auto manufacturers")
-- **What problem** does it solve for them, in economic terms
-- **Why this technology** over what they do today
-- **Signal of real demand** — is there evidence customers actually want this (pilots, analogues, regulatory pressure)?
-Rank them. Flag if the top use case has a real customer vs. is speculative.`,
+    `Identify the 2-4 most viable use cases. For each, use this structure:
+
+### [N]. [Use Case Name] — [one-word verdict: Primary / Secondary / Speculative]
+- **Buyer**: [specific role at specific type of company, not "enterprises"]
+- **Problem**: [what it costs them today, in dollars or operational terms]
+- **Why this wins**: [specific advantage over status quo]
+- **Demand signal**: [pilot, named customer, regulatory driver, or "none yet — speculative"]
+
+Rank by commercial attractiveness. Flag clearly which has real traction vs. which is hypothetical.`,
 
   vs_existing:
-    `Compare this technology against realistic alternatives. For each incumbent/alternative:
-- What it is and why buyers currently use it
-- Where this technology wins (performance, cost, scalability, regulatory fit) — be quantitative where possible
-- Where this technology is worse or unproven
-- What the switching friction looks like (procurement cycles, integration cost, re-qualification)
-Don't just list advantages. The honest comparison — including weaknesses — is more useful than a one-sided pitch.`,
+    `Compare against incumbent solutions. Use a table for the head-to-head, then add commentary on switching friction.
+
+| Incumbent | Why buyers use it today | Where this tech wins | Where this tech loses |
+|-----------|------------------------|---------------------|----------------------|
+| [name] | [reason] | [specific advantage] | [honest weakness] |
+
+After the table:
+**Switching friction**: What does it actually take for a buyer to switch? (procurement cycle length, re-qualification cost, integration effort, risk tolerance)
+
+**The honest verdict**: Is this technology better enough — and different enough — to overcome inertia? Or is it a marginal improvement that will struggle to displace entrenched incumbents?`,
 
   unit_economics:
-    `Analyze the unit economics potential. Work through:
-- What does it cost to produce/deliver one unit of value?
-- What can a customer reasonably be charged, and what's the value-based anchor?
-- What's the margin structure if this scales (what costs fall, what stays fixed)?
-- What business model fits best — and what assumptions does it rest on?
-Be honest about what's unknown. If the cost structure is unclear from available info, say so and identify what needs to be true for this to work.`,
+    `Break down the unit economics. Use this structure:
+
+**Cost to Produce**
+Walk through the main cost components (CapEx amortized, OpEx, inputs). If numbers are available from the inputs, use them. If not, flag what's unknown.
+
+**Revenue Potential**
+What can you charge, and what's the value-based anchor? (e.g. "replaces fishmeal at $1,500/ton → ceiling price is ~$1,200/ton at 80% of incumbent")
+
+**The Math at Scale**
+Show the key equation: [output per unit] × [price] − [cost] = [margin]. Even rough numbers are more useful than prose.
+
+**What Needs to Be True**
+List 2-3 specific assumptions the economics depend on. If any one of them is wrong, what breaks?`,
 
   market_sizing:
-    `Do a grounded market sizing. Show your work:
-- **TAM**: What's the total addressable market? Cite sources for any figures (e.g. "Grand View Research, 2024"). If you're building bottom-up, show the logic.
-- **SAM**: What subset is actually reachable given geography, go-to-market, and technology readiness?
-- **SOM**: What's a realistic 3-5 year capture? Anchor this to comparable venture trajectories if possible.
-- **Beachhead**: Which specific segment should be entered first, and why?
-Don't pad with multiple overlapping market definitions. Pick the most defensible numbers and be clear about confidence level.`,
+    `Do a grounded market sizing. No padding, show the logic.
+
+**TAM** — [$ figure] ([source or methodology])
+One sentence on how you got there.
+
+**SAM** — [$ figure]
+What constrains the reachable market: geography, go-to-market, tech readiness, regulation.
+
+**SOM (3-5 year)** — [$ figure]
+What a well-executed venture could realistically capture. Anchor to a comparable if possible.
+
+**Beachhead**
+Name the specific segment to enter first. Why this one: lowest friction, highest willingness to pay, or clearest path to a reference customer?
+
+Flag your confidence level on each number. Honest uncertainty beats false precision.`,
 };
 
 const SECTION_LABELS: Record<string, string> = {
@@ -152,14 +190,20 @@ export async function POST(
           {
             role: 'system',
             content:
-              `You are a rigorous venture analyst at ATUM Ventures, a deep-tech venture builder in Singapore (focus: Advanced Manufacturing, Biotech/Medtech, Energy/Climate). Your job is to produce sharp, honest analysis — not pitch decks. Write like a thoughtful analyst, not a consultant. Use plain language. Be direct about uncertainty. Quantify claims and cite sources where you have them. Call out gaps, weak assumptions, and risks. Avoid corporate filler phrases.
+              `You are a senior analyst at ATUM Ventures, a deep-tech venture builder in Singapore (Advanced Manufacturing, Biotech/Medtech, Energy/Climate). You think like an operator, not a consultant. Your job: produce analysis that is immediately actionable, not impressive-sounding.
 
-Formatting rules:
-- Use plain prose paragraphs as the default. No bullet lists unless you're listing 3+ parallel items.
-- Use **bold** very sparingly — only for specific numbers, key terms being introduced for the first time, or a critical finding. Do NOT bold every phrase or turn it into a heading.
-- Use ## only for major sub-sections within a long section. Skip it for short sections.
-- Do NOT number every paragraph or sub-point. Write in flowing prose.
-- Aim for 150-250 words per section unless the topic genuinely demands more.`,
+Style rules — follow these exactly:
+- Write in analyst shorthand. Short sentences. Direct claims. No throat-clearing openers.
+- Never start a section with "This technology..." or "The X venture presents...". Start with the most important thing.
+- Use → to show implications (e.g. "CapEx is $3M → payback period exceeds 8 years at current prices")
+- Use **bold** only for specific numbers, named companies, or the single most important term per paragraph. Not for every noun phrase.
+- Use tables when comparing 3+ options across consistent dimensions. Tables beat bullet lists for comparisons.
+- Keep bullets to one line each. If a bullet needs two sentences, it's not a bullet — it's a paragraph.
+- When you don't know something, say: "Unknown — needs validation" or "No data in inputs — estimate only". Don't invent confidence.
+- Name specific companies, people, prices. "Major pet food manufacturers" is useless. "Nestlé Purina, Mars Petcare" is useful.
+- Call out the uncomfortable truth. If the economics look bad, say so. If the market is crowded, say so.
+
+Format: use markdown. **bold** for key terms/numbers. ### for sub-headings within a section. Bullet lists for parallel items. Tables for comparisons. No ## headers (each section already has a title).`,
           },
           { role: 'user', content: userMessage },
         ],
