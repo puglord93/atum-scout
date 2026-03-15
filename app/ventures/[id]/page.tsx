@@ -18,7 +18,7 @@ function MarkdownContent({ text }: { text: string }) {
       blocks.push(
         <ul key={key++} className="list-disc pl-4 space-y-0.5 my-1.5">
           {listItems.map((item, i) => (
-            <li key={i} className="text-sm text-gray-700 leading-relaxed">
+            <li key={i} className="text-sm text-gray-600 leading-[1.75]">
               <InlineMarkdown text={item} />
             </li>
           ))}
@@ -65,7 +65,7 @@ function MarkdownContent({ text }: { text: string }) {
 
     // Regular paragraph
     blocks.push(
-      <p key={key++} className="text-sm text-gray-700 leading-relaxed">
+      <p key={key++} className="text-sm text-gray-600 leading-[1.75]">
         <InlineMarkdown text={line} />
       </p>
     );
@@ -73,7 +73,7 @@ function MarkdownContent({ text }: { text: string }) {
 
   flushList();
 
-  return <div className="space-y-1.5">{blocks}</div>;
+  return <div className="space-y-3">{blocks}</div>;
 }
 
 function InlineMarkdown({ text }: { text: string }) {
@@ -1093,7 +1093,7 @@ export default function VentureWorkspacePage({
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Top bar */}
         <div className="flex items-start justify-between gap-4 mb-1">
@@ -1287,7 +1287,7 @@ export default function VentureWorkspacePage({
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 min-w-0 max-w-3xl bg-white border border-gray-200 rounded-lg px-8">
+          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-8">
             {/* Mobile: add input button */}
             <div className="lg:hidden py-4 border-b border-gray-100">
               <button
