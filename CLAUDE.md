@@ -1,5 +1,19 @@
 # ATUM Scout - Project Context
 
+## Deployment (IMPORTANT — always do this after pushing code)
+
+**Every `git push` to `main` auto-deploys via GitHub Actions.** No manual steps needed.
+
+- **CI/CD**: `.github/workflows/deploy.yml` — triggers on every push to `main`
+- **Server**: Oracle Cloud Ubuntu 22.04, reverse-proxied via Nginx, managed with PM2
+- **App name**: `atum-scout` (pm2)
+- **Live URL**: https://161-118-225-166.sslip.io (sslip.io domain, Let's Encrypt SSL)
+- **Deploy steps** (automated): `git pull` → `npm install` → `npx prisma generate` → `npm run build` → `pm2 restart atum-scout --update-env`
+- **Check deploy status**: `gh run list --repo puglord93/atum-scout --limit 3`
+- **Typical deploy time**: ~2-3 minutes after push
+
+**Workflow**: Make changes → `git add` → `git commit` → `git push` → deploy runs automatically → check `gh run list` to confirm success.
+
 ## What This Project Does
 
 ATUM Scout is a deep-tech researcher and technology scouting platform for ATUM Ventures (Singapore). It manages 256 researchers and 313 tech offers from research institutions, enabling:
