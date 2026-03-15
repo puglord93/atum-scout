@@ -173,7 +173,7 @@ export async function POST(
     const existingQuestions = await prisma.ventureQuestion.findMany({
       where: { ventureCaseId: id },
     });
-    const shouldExtractQuestions = !key || existingQuestions.length === 0;
+    const shouldExtractQuestions = existingQuestions.length === 0;
 
     const updatedSections: Array<{ key: string; content: string }> = [];
 
@@ -184,7 +184,7 @@ export async function POST(
       const isFirstSection = sectionKey === keysToAnalyze[0];
       const addQuestionsPrompt =
         shouldExtractQuestions && isFirstSection
-          ? '\n\nAdditionally, return a JSON array of 4-6 key assumptions that must hold true for this venture to work — things currently unvalidated that could kill or reshape the thesis if wrong. Frame each as a testable hypothesis (e.g. "Customers will pay a 30% premium over incumbent Y for benefit Z"). Return them at the end in this exact format: QUESTIONS_JSON:["assumption1", "assumption2", ...]'
+          ? '\n\nAdditionally, identify the 5-6 most critical assumptions that must hold true for this venture to work. Rank them by how likely they are to kill the venture if wrong. For each, assign a priority: "critical" (kills venture if wrong), "high" (major setback), or "medium" (important but workable). Return them at the end in this exact format: QUESTIONS_JSON:[{"a":"assumption text as testable hypothesis","p":"critical"},{"a":"another assumption","p":"high"},...]'
           : '';
 
       const userMessage = `${context}\n\n---\n\nTASK: ${prompt}${addQuestionsPrompt}`;
@@ -224,21 +224,38 @@ Format: use markdown. **bold** for key terms/numbers. ### for sub-headings withi
         const qMatch = content.match(/QUESTIONS_JSON:\s*(\[[\s\S]*?\])/);
         if (qMatch) {
           try {
-            const questions: string[] = JSON.parse(qMatch[1]);
             // Remove the QUESTIONS_JSON block from content
             content = content.replace(/\n*QUESTIONS_JSON:\s*\[[\s\S]*?\]/, '').trim();
 
-            // Create questions that don't already exist
-            const existingTexts = new Set(existingQuestions.map(q => q.question));
-            const newQuestions = questions.filter(q => !existingTexts.has(q));
+            // Parse both new format [{a,p}] and old format ["string"]
+            let assumptions: Array<{a: string, p: string}> = [];
+            const parsed = JSON.parse(qMatch[1]);
+            if (Array.isArray(parsed)) {
+              if (parsed.length > 0 && typeof parsed[0] === 'string') {
+                // Old format
+                assumptions = parsed.map((s: string) => ({ a: s, p: 'medium' }));
+              } else {
+                // New format
+                assumptions = parsed.map((item: {a?: string, assumption?: string, p?: string, priority?: string}) => ({
+                  a: item.a || item.assumption || '',
+                  p: item.p || item.priority || 'medium',
+                }));
+              }
+            }
 
-            if (newQuestions.length > 0) {
+            // Dedup against existing questions
+            const existingTexts = new Set(existingQuestions.map(q => q.question));
+            const newAssumptions = assumptions.filter(item => item.a && !existingTexts.has(item.a));
+
+            if (newAssumptions.length > 0) {
               const maxOrder = existingQuestions.reduce((max, q) => Math.max(max, q.order), -1);
-              for (let i = 0; i < newQuestions.length; i++) {
+              for (let i = 0; i < newAssumptions.length; i++) {
+                const item = newAssumptions[i];
                 await prisma.ventureQuestion.create({
                   data: {
                     ventureCaseId: id,
-                    question: newQuestions[i],
+                    question: item.a,
+                    priority: ['critical', 'high', 'medium'].includes(item.p) ? item.p : 'medium',
                     order: maxOrder + 1 + i,
                   },
                 });

@@ -39,7 +39,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { question } = body;
+    const { question, priority } = body;
 
     if (!question?.trim()) {
       return NextResponse.json(
@@ -57,6 +57,7 @@ export async function POST(
       data: {
         ventureCaseId: id,
         question: question.trim(),
+        priority: ['critical', 'high', 'medium'].includes(priority) ? priority : 'medium',
         order: (maxOrder._max.order ?? -1) + 1,
       },
     });
@@ -68,5 +69,20 @@ export async function POST(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
+    if (isNaN(id)) return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400 });
+    await prisma.ventureQuestion.deleteMany({ where: { ventureCaseId: id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }

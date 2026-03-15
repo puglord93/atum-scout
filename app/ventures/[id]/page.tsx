@@ -218,6 +218,7 @@ type VentureQuestion = {
   answer: string | null;
   answered: boolean;
   order: number;
+  priority: string; // 'critical' | 'high' | 'medium'
 };
 
 type VentureAction = {
@@ -770,6 +771,27 @@ function SectionBlock({
   );
 }
 
+// ─── Priority Badge ───────────────────────────────────────────────────────────
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const styles: Record<string, string> = {
+    critical: 'bg-red-50 text-red-600 border-red-200',
+    high: 'bg-orange-50 text-orange-600 border-orange-200',
+    medium: 'bg-gray-50 text-gray-500 border-gray-200',
+  };
+  const labels: Record<string, string> = {
+    critical: 'Critical',
+    high: 'High',
+    medium: 'Medium',
+  };
+  const s = styles[priority] || styles.medium;
+  return (
+    <span className={`inline-flex items-center text-xs font-medium px-1.5 py-0.5 rounded border flex-shrink-0 ${s}`}>
+      {labels[priority] || 'Medium'}
+    </span>
+  );
+}
+
 // ─── Questions Section ────────────────────────────────────────────────────────
 
 function QuestionsSection({
@@ -783,10 +805,17 @@ function QuestionsSection({
 }) {
   const [newQ, setNewQ] = useState('');
   const [answerInputs, setAnswerInputs] = useState<Record<number, string>>({});
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const openCount = questions.filter(q => !q.answered).length;
   const answeredCount = questions.filter(q => q.answered).length;
+
+  // Sort by priority: critical first, then high, then medium, then answered last
+  const priorityOrder = ['critical', 'high', 'medium'];
+  const sorted = [...questions].sort((a, b) => {
+    if (a.answered !== b.answered) return a.answered ? 1 : -1;
+    return priorityOrder.indexOf(a.priority) - priorityOrder.indexOf(b.priority);
+  });
 
   const addQuestion = async () => {
     if (!newQ.trim()) return;
@@ -804,9 +833,15 @@ function QuestionsSection({
 
   const deleteQuestion = async (qId: number) => {
     const res = await fetch(`/api/ventures/${ventureId}/questions/${qId}`, { method: 'DELETE' });
-    if (res.ok) {
-      onUpdate(questions.filter(q => q.id !== qId));
-    }
+    if (res.ok) onUpdate(questions.filter(q => q.id !== qId));
+  };
+
+  const clearAll = async () => {
+    if (!confirm('Clear all assumptions? They will be regenerated next time you run Analyze All.')) return;
+    setClearing(true);
+    const res = await fetch(`/api/ventures/${ventureId}/questions`, { method: 'DELETE' });
+    if (res.ok) onUpdate([]);
+    setClearing(false);
   };
 
   const markAnswered = async (q: VentureQuestion) => {
@@ -830,27 +865,31 @@ function QuestionsSection({
       body: JSON.stringify({ answered: !q.answered }),
     });
     const data = await res.json();
-    if (data.success) {
-      onUpdate(questions.map(qq => qq.id === q.id ? data.data : qq));
-    }
+    if (data.success) onUpdate(questions.map(qq => qq.id === q.id ? data.data : qq));
   };
 
   return (
     <div id="section-questions" className="py-8 border-b border-gray-100">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">Assumptions to Validate</h2>
-        <span className="text-xs text-gray-400 font-mono">{openCount} unvalidated · {answeredCount} validated</span>
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Assumptions to Validate</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{openCount} unvalidated · {answeredCount} validated</p>
+        </div>
+        {questions.length > 0 && (
+          <button
+            onClick={clearAll}
+            disabled={clearing}
+            className="text-xs text-gray-400 hover:text-red-500 transition disabled:opacity-40"
+          >
+            Clear all
+          </button>
+        )}
       </div>
 
-      <div className="space-y-3 mb-4">
-        {questions.map(q => (
-          <div
-            key={q.id}
-            className="group"
-            onMouseEnter={() => setHovered(q.id)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            <div className="flex items-start gap-2">
+      <div className="space-y-4 mb-4">
+        {sorted.map(q => (
+          <div key={q.id} className="group">
+            <div className="flex items-start gap-2.5">
               <button
                 onClick={() => toggleAnswered(q)}
                 className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 transition ${
@@ -864,9 +903,12 @@ function QuestionsSection({
                 )}
               </button>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm ${q.answered ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                  {q.question}
-                </p>
+                <div className="flex items-start gap-2 mb-1">
+                  {!q.answered && <PriorityBadge priority={q.priority} />}
+                  <p className={`text-sm leading-relaxed ${q.answered ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                    {q.question}
+                  </p>
+                </div>
                 {q.answered && q.answer && (
                   <p className="text-xs text-gray-400 mt-1 leading-relaxed">Validation: {q.answer}</p>
                 )}
@@ -885,21 +927,19 @@ function QuestionsSection({
                       className="h-8 px-2.5 text-xs font-medium text-white rounded transition disabled:opacity-40 flex-shrink-0"
                       style={{ backgroundColor: '#F0602C' }}
                     >
-                      Mark Answered
+                      Mark Validated
                     </button>
                   </div>
                 )}
               </div>
-              {hovered === q.id && (
-                <button
-                  onClick={() => deleteQuestion(q.id)}
-                  className="mt-0.5 text-gray-300 hover:text-red-400 transition flex-shrink-0"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+              <button
+                onClick={() => deleteQuestion(q.id)}
+                className="mt-0.5 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition flex-shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
         ))}
@@ -908,7 +948,7 @@ function QuestionsSection({
       <div className="flex items-center gap-2">
         <input
           type="text"
-          placeholder="Add a question..."
+          placeholder="Add an assumption..."
           value={newQ}
           onChange={e => setNewQ(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addQuestion()}
@@ -939,8 +979,24 @@ function ActionsSection({
 }) {
   const [newAction, setNewAction] = useState('');
   const [hovered, setHovered] = useState<number | null>(null);
+  const [suggestingActions, setSuggestingActions] = useState(false);
 
   const openCount = actions.filter(a => !a.done).length;
+
+  const suggestActions = async () => {
+    setSuggestingActions(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/actions/suggest`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        onUpdate([...actions, ...data.data]);
+      } else {
+        alert(data.error || 'Failed to suggest actions');
+      }
+    } finally {
+      setSuggestingActions(false);
+    }
+  };
 
   const addAction = async () => {
     if (!newAction.trim()) return;
@@ -978,8 +1034,33 @@ function ActionsSection({
   return (
     <div id="section-actions" className="py-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">Action Items</h2>
-        <span className="text-xs text-gray-400 font-mono">{openCount} open</span>
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Actions</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{openCount} open</p>
+        </div>
+        <button
+          onClick={suggestActions}
+          disabled={suggestingActions}
+          className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white rounded transition disabled:opacity-50"
+          style={{ backgroundColor: '#F0602C' }}
+        >
+          {suggestingActions ? (
+            <>
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Generating...
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Suggest with AI
+            </>
+          )}
+        </button>
       </div>
 
       <div className="space-y-2 mb-4">

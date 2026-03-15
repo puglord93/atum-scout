@@ -14,7 +14,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { answer, answered, question } = body;
+    const { answer, answered, question, priority } = body;
 
     const q = await prisma.ventureQuestion.update({
       where: { id: qId, ventureCaseId: id },
@@ -22,6 +22,7 @@ export async function PATCH(
         ...(answer !== undefined ? { answer } : {}),
         ...(answered !== undefined ? { answered } : {}),
         ...(question !== undefined ? { question } : {}),
+        ...(priority !== undefined ? { priority } : {}),
       },
     });
 
