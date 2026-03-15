@@ -692,7 +692,7 @@ function SectionBlock({
         {!editing && (
           <div className="flex items-center gap-2 flex-shrink-0">
             {section.generatedAt && (
-              <span className="text-xs text-gray-400">
+              <span className="hidden sm:inline text-xs text-gray-400">
                 Generated {formatDate(section.generatedAt)}
                 {section.inputCount > 0 && ` · after ${section.inputCount} input${section.inputCount !== 1 ? 's' : ''}`}
               </span>
@@ -1330,7 +1330,7 @@ export default function VentureWorkspacePage({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Top bar */}
-        <div className="flex items-start justify-between gap-4 mb-1">
+        <div className="flex items-start justify-between gap-3 mb-1">
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             {/* Breadcrumb */}
             <Link href="/ventures" className="text-sm text-gray-400 hover:text-gray-700 transition flex-shrink-0 flex items-center gap-1 w-fit">
@@ -1341,7 +1341,7 @@ export default function VentureWorkspacePage({
             </Link>
 
             {/* Title + status */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex items-start gap-2 flex-1 min-w-0">
               {editingTitle ? (
                 <input
                   ref={titleInputRef}
@@ -1353,11 +1353,11 @@ export default function VentureWorkspacePage({
                     if (e.key === 'Enter') saveTitle();
                     if (e.key === 'Escape') setEditingTitle(false);
                   }}
-                  className="text-2xl font-semibold text-gray-900 tracking-tight bg-transparent border-b-2 border-[#F0602C] outline-none flex-1 min-w-0 py-0.5"
+                  className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight bg-transparent border-b-2 border-[#F0602C] outline-none flex-1 min-w-0 py-0.5"
                 />
               ) : (
                 <h1
-                  className="text-2xl font-semibold text-gray-900 tracking-tight cursor-text hover:text-gray-700 transition truncate"
+                  className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight cursor-text hover:text-gray-700 transition"
                   onClick={() => { setTitleInput(venture.title); setEditingTitle(true); }}
                   title="Click to edit"
                 >
@@ -1374,7 +1374,7 @@ export default function VentureWorkspacePage({
               <button
                 onClick={() => analyze()}
                 disabled={analyzing}
-                className="h-9 pl-4 pr-2 text-sm font-medium text-white rounded-l transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="h-9 px-3 sm:pl-4 sm:pr-2 text-sm font-medium text-white rounded-l transition disabled:opacity-50 inline-flex items-center gap-1.5"
                 style={{ backgroundColor: '#F0602C' }}
               >
                 {analyzing ? (
@@ -1387,7 +1387,7 @@ export default function VentureWorkspacePage({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 )}
-                {analyzing ? 'Analyzing...' : 'Analyze All'}
+                <span className="hidden sm:inline">{analyzing ? 'Analyzing...' : 'Analyze All'}</span>
               </button>
               <button
                 onClick={() => setAnalyzeDropdownOpen(o => !o)}
@@ -1426,7 +1426,7 @@ export default function VentureWorkspacePage({
 
         {/* Subtitle */}
         {(venture.researcher || venture.techOffer) && (
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-6">
             {venture.researcher && (
               <Link href={`/researchers/${venture.researcher.id}`} className="hover:text-gray-800 transition">
                 {venture.researcher.fullName} · {venture.researcher.affiliation}
@@ -1521,9 +1521,9 @@ export default function VentureWorkspacePage({
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-8">
-            {/* Mobile: add input button */}
-            <div className="lg:hidden py-4 border-b border-gray-100">
+          <main className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-4 sm:px-8">
+            {/* Mobile: top toolbar */}
+            <div className="lg:hidden flex items-center justify-between py-3 border-b border-gray-100">
               <button
                 onClick={() => setShowAddInput(true)}
                 className="text-sm text-gray-600 hover:text-gray-900 transition flex items-center gap-1.5"
@@ -1533,6 +1533,24 @@ export default function VentureWorkspacePage({
                 </svg>
                 Add Input
               </button>
+              <span className="text-xs text-gray-400">{venture.inputs.length} input{venture.inputs.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {/* Mobile: section nav pills */}
+            <div className="lg:hidden -mx-4 px-4 overflow-x-auto flex gap-1.5 py-3 border-b border-gray-100" style={{ scrollbarWidth: 'none' }}>
+              {navItems.map(item => (
+                <button
+                  key={item.key}
+                  onClick={() => scrollToSection(item.key)}
+                  className={`flex-shrink-0 h-7 px-3 text-xs font-medium rounded-full border transition ${
+                    activeSection === item.key
+                      ? 'border-[#F0602C] text-[#F0602C] bg-orange-50'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
 
             {/* Analysis sections */}
