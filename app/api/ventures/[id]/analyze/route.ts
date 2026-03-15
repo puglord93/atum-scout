@@ -175,27 +175,7 @@ export async function POST(
     });
     const shouldExtractQuestions = existingQuestions.length === 0;
 
-    const updatedSections: Array<{ key: string; content: string }> = [];
-
-    for (const sectionKey of keysToAnalyze) {
-      const prompt = SECTION_PROMPTS[sectionKey];
-      if (!prompt) continue;
-
-      const isFirstSection = sectionKey === keysToAnalyze[0];
-      const addQuestionsPrompt =
-        shouldExtractQuestions && isFirstSection
-          ? '\n\nAdditionally, identify the 5-6 most critical assumptions that must hold true for this venture to work. Rank them by how likely they are to kill the venture if wrong. For each, assign a priority: "critical" (kills venture if wrong), "high" (major setback), or "medium" (important but workable). Return them at the end in this exact format: QUESTIONS_JSON:[{"a":"assumption text as testable hypothesis","p":"critical"},{"a":"another assumption","p":"high"},...]'
-          : '';
-
-      const userMessage = `${context}\n\n---\n\nTASK: ${prompt}${addQuestionsPrompt}`;
-
-      const completion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content:
-              `You are a senior analyst at ATUM Ventures, a deep-tech venture builder in Singapore (Advanced Manufacturing, Biotech/Medtech, Energy/Climate). You think like an operator, not a consultant. Your job: produce analysis that is immediately actionable, not impressive-sounding.
+    const SYSTEM_PROMPT = `You are a senior analyst at ATUM Ventures, a deep-tech venture builder in Singapore (Advanced Manufacturing, Biotech/Medtech, Energy/Climate). You think like an operator, not a consultant. Your job: produce analysis that is immediately actionable, not impressive-sounding.
 
 How ATUM builds ventures: The PI/researcher is NOT the founder — they become a technical advisor. ATUM recruits a dedicated founding team: a commercial co-founder (industry background, GTM experience) and a technical co-founder. The venture is funded from day one: pre-seed capital, ESG/deep tech grants (e.g. Enterprise Singapore, NRF), then seed and Series A. So when reasoning about execution constraints, do NOT cite "PI availability" or "research team capacity" — the venture has a hired team, real capital, and a proper operating structure.
 
@@ -210,62 +190,24 @@ Style rules — follow these exactly:
 - Name specific companies, people, prices. "Major pet food manufacturers" is useless. "Nestlé Purina, Mars Petcare" is useful.
 - Call out the uncomfortable truth. If the economics look bad, say so. If the market is crowded, say so.
 
-Format: use markdown. **bold** for key terms/numbers. ### for sub-headings within a section. Bullet lists for parallel items. Tables for comparisons. No ## headers (each section already has a title).`,
-          },
-          { role: 'user', content: userMessage },
+Format: use markdown. **bold** for key terms/numbers. ### for sub-headings within a section. Bullet lists for parallel items. Tables for comparisons. No ## headers (each section already has a title).`;
+
+    const updatedSections: Array<{ key: string; content: string }> = [];
+
+    for (const sectionKey of keysToAnalyze) {
+      const prompt = SECTION_PROMPTS[sectionKey];
+      if (!prompt) continue;
+
+      const completion = await openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `${context}\n\n---\n\nTASK: ${prompt}` },
         ],
         temperature: 0.7,
       });
 
-      let content = completion.choices[0].message.content || '';
-
-      // Extract and handle questions if present
-      if (shouldExtractQuestions && isFirstSection && content.includes('QUESTIONS_JSON:')) {
-        const qMatch = content.match(/QUESTIONS_JSON:\s*(\[[\s\S]*?\])/);
-        if (qMatch) {
-          try {
-            // Remove the QUESTIONS_JSON block from content
-            content = content.replace(/\n*QUESTIONS_JSON:\s*\[[\s\S]*?\]/, '').trim();
-
-            // Parse both new format [{a,p}] and old format ["string"]
-            let assumptions: Array<{a: string, p: string}> = [];
-            const parsed = JSON.parse(qMatch[1]);
-            if (Array.isArray(parsed)) {
-              if (parsed.length > 0 && typeof parsed[0] === 'string') {
-                // Old format
-                assumptions = parsed.map((s: string) => ({ a: s, p: 'medium' }));
-              } else {
-                // New format
-                assumptions = parsed.map((item: {a?: string, assumption?: string, p?: string, priority?: string}) => ({
-                  a: item.a || item.assumption || '',
-                  p: item.p || item.priority || 'medium',
-                }));
-              }
-            }
-
-            // Dedup against existing questions
-            const existingTexts = new Set(existingQuestions.map(q => q.question));
-            const newAssumptions = assumptions.filter(item => item.a && !existingTexts.has(item.a));
-
-            if (newAssumptions.length > 0) {
-              const maxOrder = existingQuestions.reduce((max, q) => Math.max(max, q.order), -1);
-              for (let i = 0; i < newAssumptions.length; i++) {
-                const item = newAssumptions[i];
-                await prisma.ventureQuestion.create({
-                  data: {
-                    ventureCaseId: id,
-                    question: item.a,
-                    priority: ['critical', 'high', 'medium'].includes(item.p) ? item.p : 'medium',
-                    order: maxOrder + 1 + i,
-                  },
-                });
-              }
-            }
-          } catch {
-            // Parse failure — continue without questions
-          }
-        }
-      }
+      const content = completion.choices[0].message.content || '';
 
       // Update section
       await prisma.ventureSection.updateMany({
@@ -279,6 +221,52 @@ Format: use markdown. **bold** for key terms/numbers. ### for sub-headings withi
       });
 
       updatedSections.push({ key: sectionKey, content });
+    }
+
+    // Dedicated assumptions generation — separate call so it never gets dropped
+    if (shouldExtractQuestions) {
+      try {
+        const assumptionsCompletion = await openai.chat.completions.create({
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a venture analyst. Your only job right now is to identify the key assumptions that must hold true for this venture to work. Be specific and ruthless. Frame each as a testable hypothesis. Return ONLY the JSON array, no other text.',
+            },
+            {
+              role: 'user',
+              content: `${context}\n\n---\n\nIdentify the 5-6 most critical assumptions that must hold true for this venture to succeed. Rank by how likely they are to kill the venture if wrong.\n\nFor each assumption:\n- "a": the assumption as a testable hypothesis (specific, not vague — e.g. "Fish farms in Singapore will pay $1,200-1,500/ton for SCP as fishmeal replacement" not "customers will pay for the product")\n- "p": priority — "critical" (kills venture if wrong), "high" (major setback if wrong), or "medium" (workable if wrong)\n\nReturn ONLY this JSON, no other text:\n[{"a":"assumption","p":"critical"},{"a":"assumption","p":"high"},...]`,
+            },
+          ],
+          temperature: 0.5,
+        });
+
+        const raw = assumptionsCompletion.choices[0].message.content?.trim() || '';
+        // Strip any markdown code fences if present
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (let i = 0; i < parsed.length; i++) {
+            const item = parsed[i];
+            const text = item.a || item.assumption || (typeof item === 'string' ? item : '');
+            const priority = item.p || item.priority || 'medium';
+            if (text.trim()) {
+              await prisma.ventureQuestion.create({
+                data: {
+                  ventureCaseId: id,
+                  question: text.trim(),
+                  priority: ['critical', 'high', 'medium'].includes(priority) ? priority : 'medium',
+                  order: i,
+                },
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Assumptions generation failed:', e);
+        // Non-fatal — sections are still saved
+      }
     }
 
     // Return updated sections and questions
