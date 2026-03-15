@@ -771,6 +771,10 @@ export default function VentureWorkspacePage({
   // Add input modal
   const [showAddInput, setShowAddInput] = useState(false);
   const [viewingInput, setViewingInput] = useState<VentureInput | null>(null);
+  const [editingInput, setEditingInput] = useState(false);
+  const [editInputLabel, setEditInputLabel] = useState('');
+  const [editInputContent, setEditInputContent] = useState('');
+  const [savingInput, setSavingInput] = useState(false);
 
   // Active sidebar section
   const [activeSection, setActiveSection] = useState('summary');
@@ -889,6 +893,23 @@ export default function VentureWorkspacePage({
     if (res.ok) {
       setVenture(v => v ? { ...v, inputs: v.inputs.filter(i => i.id !== inputId) } : v);
     }
+  };
+
+  const handleUpdateInput = async () => {
+    if (!viewingInput) return;
+    setSavingInput(true);
+    const res = await fetch(`/api/ventures/${ventureId}/inputs/${viewingInput.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: editInputLabel, content: editInputContent }),
+    });
+    if (res.ok) {
+      const updated = { ...viewingInput, label: editInputLabel, content: editInputContent };
+      setVenture(v => v ? { ...v, inputs: v.inputs.map(i => i.id === viewingInput.id ? updated : i) } : v);
+      setViewingInput(updated);
+      setEditingInput(false);
+    }
+    setSavingInput(false);
   };
 
   const handleSectionSave = (key: string, content: string) => {
@@ -1161,18 +1182,34 @@ export default function VentureWorkspacePage({
         />
       )}
 
-      {/* Input view modal */}
+      {/* Input view/edit modal */}
       {viewingInput && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setViewingInput(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => { setViewingInput(null); setEditingInput(false); }}>
           <div className="bg-white rounded-lg border border-gray-200 w-full max-w-2xl shadow-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
                 {inputIcon(viewingInput.type)}
-                <span className="text-sm font-semibold text-gray-900">{viewingInput.label}</span>
+                {editingInput ? (
+                  <input
+                    className="text-sm font-semibold text-gray-900 border border-gray-300 rounded px-2 py-1 flex-1 min-w-0 focus:outline-none focus:border-gray-400"
+                    value={editInputLabel}
+                    onChange={e => setEditInputLabel(e.target.value)}
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-gray-900 truncate">{viewingInput.label}</span>
+                )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                {!editingInput && (
+                  <button
+                    onClick={() => { setEditingInput(true); setEditInputLabel(viewingInput.label); setEditInputContent(viewingInput.content); }}
+                    className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded px-2 py-1 transition"
+                  >
+                    Edit
+                  </button>
+                )}
                 <span className="text-xs text-gray-400">{new Date(viewingInput.createdAt).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                <button onClick={() => setViewingInput(null)} className="text-gray-400 hover:text-gray-600 transition">
+                <button onClick={() => { setViewingInput(null); setEditingInput(false); }} className="text-gray-400 hover:text-gray-600 transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -1180,18 +1217,47 @@ export default function VentureWorkspacePage({
               </div>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
-              <pre className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">{viewingInput.content}</pre>
+              {editingInput ? (
+                <textarea
+                  className="w-full h-64 text-sm text-gray-700 leading-relaxed border border-gray-300 rounded p-3 resize-y focus:outline-none focus:border-gray-400 font-sans"
+                  value={editInputContent}
+                  onChange={e => setEditInputContent(e.target.value)}
+                />
+              ) : (
+                <pre className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">{viewingInput.content}</pre>
+              )}
             </div>
             <div className="px-6 py-3 border-t border-gray-100 flex justify-between items-center flex-shrink-0">
               <button
-                onClick={() => { handleDeleteInput(viewingInput.id); setViewingInput(null); }}
+                onClick={() => { handleDeleteInput(viewingInput.id); setViewingInput(null); setEditingInput(false); }}
                 className="text-xs text-red-400 hover:text-red-600 transition"
               >
                 Delete input
               </button>
-              <button onClick={() => setViewingInput(null)} className="h-8 px-4 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:border-gray-400 transition">
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                {editingInput ? (
+                  <>
+                    <button
+                      onClick={() => setEditingInput(false)}
+                      className="h-8 px-4 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:border-gray-400 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateInput}
+                      disabled={savingInput}
+                      className="h-8 px-4 text-xs font-medium text-white rounded transition disabled:opacity-50"
+                      style={{ backgroundColor: '#F0602C' }}
+                    >
+                      {savingInput ? 'Saving…' : 'Save'}
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => { setViewingInput(null); setEditingInput(false); }} className="h-8 px-4 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:border-gray-400 transition">
+                    Close
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

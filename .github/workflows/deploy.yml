@@ -22,7 +22,6 @@ jobs:
             git pull origin main
             export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
             npm install
-            npx prisma migrate deploy || (echo "⚠ migrate retry..." && sleep 8 && npx prisma migrate deploy)
             npx prisma generate
             npm run build
             pm2 restart atum-scout --update-env
