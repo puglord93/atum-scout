@@ -4,13 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { exportToCsv } from '@/lib/export';
 import { PIPELINE_STAGES, getStage } from '@/lib/stages';
 
@@ -244,54 +237,50 @@ export default function ResearchersPage() {
                 className="h-9 text-sm border-gray-300 focus:border-[#F0602C] focus:ring-[#F0602C]"
               />
             </div>
-            <Select value={tierFilter} onValueChange={setTierFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300">
-                <SelectValue placeholder="Tier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tiers</SelectItem>
-                <SelectItem value="A">A</SelectItem>
-                <SelectItem value="B">B</SelectItem>
-                <SelectItem value="C">C</SelectItem>
-                <SelectItem value="D">D</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300">
-                <SelectValue placeholder="Stage" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Stages</SelectItem>
-                {PIPELINE_STAGES.map(s => (
-                  <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={affiliationFilter} onValueChange={setAffiliationFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300">
-                <SelectValue placeholder="Affiliation" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="all">All Affiliations</SelectItem>
-                {uniqueAffiliations.map(a => (
-                  <SelectItem key={a} value={a}>{a}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={tierFilter}
+              onChange={e => setTierFilter(e.target.value)}
+              className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+            >
+              <option value="all">All Tiers</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+            <select
+              value={stageFilter}
+              onChange={e => setStageFilter(e.target.value)}
+              className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+            >
+              <option value="all">All Stages</option>
+              {PIPELINE_STAGES.map(s => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+            <select
+              value={affiliationFilter}
+              onChange={e => setAffiliationFilter(e.target.value)}
+              className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+            >
+              <option value="all">All Affiliations</option>
+              {uniqueAffiliations.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300 w-full sm:w-[280px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="all">All Categories</SelectItem>
-                {uniqueCategories.map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white w-full sm:w-[280px]"
+            >
+              <option value="all">All Categories</option>
+              {uniqueCategories.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
 
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline text-sm text-gray-600">

@@ -6,13 +6,6 @@ import useSWR from 'swr';
 const PAGE_SIZE = 50;
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { exportToCsv } from '@/lib/export';
 
 type TechOffer = {
@@ -206,56 +199,52 @@ export default function TechOffersPage() {
               />
             </div>
 
-            <Select value={institutionFilter} onValueChange={setInstitutionFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300">
-                <SelectValue placeholder="Institution" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="all">All Institutions</SelectItem>
-                {uniqueInstitutions.map(i => (
-                  <SelectItem key={i} value={i}>{i}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={institutionFilter}
+              onChange={e => setInstitutionFilter(e.target.value)}
+              className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+            >
+              <option value="all">All Institutions</option>
+              {uniqueInstitutions.map(i => (
+                <option key={i} value={i}>{i}</option>
+              ))}
+            </select>
 
-            <Select value={sectorFilter} onValueChange={setSectorFilter}>
-              <SelectTrigger className="h-9 text-sm border-gray-300">
-                <SelectValue placeholder="Sector" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="all">All Sectors</SelectItem>
-                {uniqueSectors.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={sectorFilter}
+              onChange={e => setSectorFilter(e.target.value)}
+              className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+            >
+              <option value="all">All Sectors</option>
+              {uniqueSectors.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-3">
-              <Select value={venturePotentialFilter} onValueChange={setVenturePotentialFilter}>
-                <SelectTrigger className="h-9 text-sm border-gray-300 w-[200px]">
-                  <SelectValue placeholder="Venture Potential" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="all">All Venture Potential</SelectItem>
-                  {uniqueVenturePotentials.map(vp => (
-                    <SelectItem key={vp} value={vp}>{vp}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={venturePotentialFilter}
+                onChange={e => setVenturePotentialFilter(e.target.value)}
+                className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white w-[200px]"
+              >
+                <option value="all">All Venture Potential</option>
+                {uniqueVenturePotentials.map(vp => (
+                  <option key={vp} value={vp}>{vp}</option>
+                ))}
+              </select>
 
-              <Select value={trlFilter} onValueChange={setTrlFilter}>
-                <SelectTrigger className="h-9 text-sm border-gray-300 w-[160px]">
-                  <SelectValue placeholder="TRL" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="all">All TRLs</SelectItem>
-                  {uniqueTRLs.map(trl => (
-                    <SelectItem key={trl} value={trl}>{trl}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={trlFilter}
+                onChange={e => setTrlFilter(e.target.value)}
+                className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white w-[160px]"
+              >
+                <option value="all">All TRLs</option>
+                {uniqueTRLs.map(trl => (
+                  <option key={trl} value={trl}>{trl}</option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center gap-3">

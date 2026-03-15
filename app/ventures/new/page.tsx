@@ -4,13 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 type Researcher = { id: number; fullName: string; affiliation: string };
 type TechOffer = { id: number; technology: string; techId: string };
@@ -105,54 +98,51 @@ export default function NewVenturePage() {
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
                 Status
               </label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="h-9 text-sm border-gray-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+                className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+              >
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
                 Link Researcher <span className="text-gray-400 normal-case font-normal">(optional)</span>
               </label>
-              <Select value={researcherId} onValueChange={setResearcherId}>
-                <SelectTrigger className="h-9 text-sm border-gray-300">
-                  <SelectValue placeholder="Select researcher..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[280px]">
-                  <SelectItem value="none">None</SelectItem>
-                  {researchers.map(r => (
-                    <SelectItem key={r.id} value={String(r.id)}>
-                      {r.fullName} · {r.affiliation}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={researcherId}
+                onChange={e => setResearcherId(e.target.value)}
+                className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+              >
+                <option value="none">None</option>
+                {researchers.map(r => (
+                  <option key={r.id} value={String(r.id)}>
+                    {r.fullName} · {r.affiliation}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
                 Link Tech Offer <span className="text-gray-400 normal-case font-normal">(optional)</span>
               </label>
-              <Select value={techOfferId} onValueChange={setTechOfferId}>
-                <SelectTrigger className="h-9 text-sm border-gray-300">
-                  <SelectValue placeholder="Select tech offer..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[280px]">
-                  <SelectItem value="none">None</SelectItem>
-                  {techOffers.map(t => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      [{t.techId}] {t.technology}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={techOfferId}
+                onChange={e => setTechOfferId(e.target.value)}
+                className="h-9 text-sm border border-gray-300 rounded px-3 focus:outline-none focus:border-[#F0602C] bg-white"
+              >
+                <option value="none">None</option>
+                {techOffers.map(t => (
+                  <option key={t.id} value={String(t.id)}>
+                    [{t.techId}] {t.technology}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
