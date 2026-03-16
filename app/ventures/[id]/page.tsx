@@ -978,12 +978,13 @@ function ActionsSection({
   onUpdate: (actions: VentureAction[]) => void;
 }) {
   const [newAction, setNewAction] = useState('');
-  const [hovered, setHovered] = useState<number | null>(null);
   const [suggestingActions, setSuggestingActions] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [editingActionId, setEditingActionId] = useState<number | null>(null);
   const [editActionText, setEditActionText] = useState('');
 
   const openCount = actions.filter(a => !a.done).length;
+  const doneCount = actions.filter(a => a.done).length;
 
   const suggestActions = async () => {
     setSuggestingActions(true);
@@ -1056,7 +1057,7 @@ function ActionsSection({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Actions</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{openCount} open</p>
+          <p className="text-xs text-gray-400 mt-0.5">{openCount} open{doneCount > 0 ? ` · ${doneCount} done` : ''}</p>
         </div>
         <button
           onClick={suggestActions}
@@ -1083,27 +1084,15 @@ function ActionsSection({
         </button>
       </div>
 
+      {/* Open actions */}
       <div className="space-y-2 mb-4">
-        {actions.map(a => (
-          <div
-            key={a.id}
-            className="flex items-center gap-2 group"
-            onMouseEnter={() => setHovered(a.id)}
-            onMouseLeave={() => setHovered(null)}
-          >
+        {actions.filter(a => !a.done).map(a => (
+          <div key={a.id} className="flex items-center gap-2 group">
             <button
               onClick={() => toggleDone(a)}
               disabled={editingActionId === a.id}
-              className={`w-4 h-4 rounded border flex-shrink-0 transition flex items-center justify-center ${
-                a.done ? 'bg-gray-400 border-gray-400 text-white' : 'border-gray-300 hover:border-gray-500'
-              }`}
-            >
-              {a.done && (
-                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
+              className="w-4 h-4 rounded border border-gray-300 hover:border-gray-500 flex-shrink-0 transition flex items-center justify-center"
+            />
 
             {editingActionId === a.id ? (
               <input
@@ -1120,29 +1109,27 @@ function ActionsSection({
               />
             ) : (
               <span
-                className={`text-sm flex-1 ${a.done ? 'line-through text-gray-400' : 'text-gray-800'}`}
-                onDoubleClick={() => !a.done && startEditAction(a)}
+                className="text-sm flex-1 text-gray-800"
+                onDoubleClick={() => startEditAction(a)}
               >
                 {a.text}
               </span>
             )}
 
-            {hovered === a.id && editingActionId !== a.id && (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {!a.done && (
-                  <button
-                    onClick={() => startEditAction(a)}
-                    className="text-gray-300 hover:text-gray-500 transition"
-                    title="Edit"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                )}
+            {editingActionId !== a.id && (
+              <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => startEditAction(a)}
+                  className="text-gray-300 hover:text-gray-500 transition p-0.5"
+                  title="Edit"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
                 <button
                   onClick={() => deleteAction(a.id)}
-                  className="text-gray-300 hover:text-red-400 transition"
+                  className="text-gray-300 hover:text-red-400 transition p-0.5"
                   title="Delete"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1153,7 +1140,52 @@ function ActionsSection({
             )}
           </div>
         ))}
+        {actions.filter(a => !a.done).length === 0 && actions.length > 0 && (
+          <p className="text-sm text-gray-400 italic">All actions completed.</p>
+        )}
       </div>
+
+      {/* Completed actions — collapsible */}
+      {actions.filter(a => a.done).length > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={() => setShowCompleted(v => !v)}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition mb-2"
+          >
+            <svg className={`w-3 h-3 transition-transform ${showCompleted ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {actions.filter(a => a.done).length} completed
+          </button>
+          {showCompleted && (
+            <div className="space-y-2 pl-1">
+              {actions.filter(a => a.done).map(a => (
+                <div key={a.id} className="flex items-center gap-2 group">
+                  <button
+                    onClick={() => toggleDone(a)}
+                    className="w-4 h-4 rounded border bg-gray-300 border-gray-300 text-white flex-shrink-0 flex items-center justify-center"
+                    title="Mark as open"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <span className="text-sm flex-1 line-through text-gray-400">{a.text}</span>
+                  <button
+                    onClick={() => deleteAction(a.id)}
+                    className="text-gray-200 hover:text-red-400 transition opacity-0 group-hover:opacity-100 flex-shrink-0 p-0.5"
+                    title="Delete"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         <input
