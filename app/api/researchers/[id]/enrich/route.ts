@@ -20,6 +20,64 @@ async function findSemanticScholarAuthor(name: string, affiliation: string) {
   }
 }
 
+async function searchWebHighlights(name: string, affiliation: string): Promise<{ title: string; source: string; snippet: string; url: string; date?: string }[]> {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) return [];
+
+  const results: { title: string; source: string; snippet: string; url: string; date?: string }[] = [];
+
+  // Search 1: Google News for press coverage / mentions
+  try {
+    const newsRes = await fetch('https://google.serper.dev/news', {
+      method: 'POST',
+      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: `"${name}" ${affiliation}`, num: 5, gl: 'us', hl: 'en' }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (newsRes.ok) {
+      const data = await newsRes.json();
+      for (const item of (data.news ?? []).slice(0, 4)) {
+        if (item.title && item.link) {
+          results.push({
+            title: item.title,
+            source: item.source ?? new URL(item.link).hostname.replace('www.', ''),
+            snippet: item.snippet ?? '',
+            url: item.link,
+            date: item.date,
+          });
+        }
+      }
+    }
+  } catch { /* silently skip */ }
+
+  // Search 2: General web search for awards, profiles, press if news came up dry
+  if (results.length < 2) {
+    try {
+      const webRes = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: `"${name}" ${affiliation} research award OR grant OR recognition OR featured`, num: 5, gl: 'us' }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (webRes.ok) {
+        const data = await webRes.json();
+        for (const item of (data.organic ?? []).slice(0, 3)) {
+          if (item.title && item.link && !results.some(r => r.url === item.link)) {
+            results.push({
+              title: item.title,
+              source: item.displayLink ?? new URL(item.link).hostname.replace('www.', ''),
+              snippet: item.snippet ?? '',
+              url: item.link,
+            });
+          }
+        }
+      }
+    } catch { /* silently skip */ }
+  }
+
+  return results.slice(0, 4);
+}
+
 async function getAuthorPapers(authorId: string) {
   const fields = 'title,year,journal,venue,citationCount,influentialCitationCount,isOpenAccess,authors';
   try {
@@ -104,12 +162,21 @@ export async function POST(
       semanticScholarFound: !!ssAuthor,
     };
 
-    // 2. GPT intelligence brief
+    // 2. Real web search for highlights (if SERPER_API_KEY set)
+    const webResults = await searchWebHighlights(researcher.fullName, researcher.affiliation);
+
+    // 3. GPT intelligence brief
     const papersContext = topPapers.length > 0
       ? topPapers.map((p: any, i: number) =>
           `${i + 1}. "${p.title}" (${p.year ?? 'n/d'}) — ${p.citationCount ?? 0} citations${p.journal?.name ? `, ${p.journal.name}` : p.venue ? `, ${p.venue}` : ''}`
         ).join('\n')
       : 'No publication data available from Semantic Scholar.';
+
+    const webResultsContext = webResults.length > 0
+      ? `\nWeb search results found for this researcher:\n${webResults.map((r, i) => `${i + 1}. [${r.source}] "${r.title}" — ${r.snippet}`).join('\n')}`
+      : '';
+
+    const needsGptWebHighlights = webResults.length === 0;
 
     const prompt = `You are an analyst at ATUM Ventures, a Singapore-based deep-tech venture builder. Analyse this researcher and produce a structured intelligence report.
 
@@ -124,17 +191,17 @@ ${researcher.noteOnResearch ? `Research Notes: ${researcher.noteOnResearch}` : '
 
 Top Publications by Citations:
 ${papersContext}
+${webResultsContext}
 
 Return ONLY a JSON object (no markdown, no fences) with exactly these fields:
 {
   "researchFocus": "One sentence, max 25 words. What is the core research focus — what problems do they solve, what technology do they advance?",
-  "brief": "Exactly 3 paragraphs separated by double newlines.\\n\\nParagraph 1: Technical overview — their key research contributions, methodology, and what makes their work distinctive.\\n\\nParagraph 2: Commercial applications — specific industry verticals, potential startup opportunities, relevant deep-tech themes (advanced manufacturing, biotech/medtech, energy/climate).\\n\\nParagraph 3: ATUM fit — is this researcher a strong candidate for venture building with ATUM? What's the outreach angle? What venture thesis does their work fit?",
+  "brief": "Exactly 3 paragraphs separated by double newlines.\\n\\nParagraph 1: Technical overview — their key research contributions, methodology, and what makes their work distinctive.\\n\\nParagraph 2: Commercial applications — specific industry verticals, potential startup opportunities, relevant deep-tech themes (advanced manufacturing, biotech/medtech, energy/climate).\\n\\nParagraph 3: ATUM fit — is this researcher a strong candidate for venture building with ATUM? What's the outreach angle? What venture thesis does their work fit?"${needsGptWebHighlights ? `,
   "webHighlights": [
     { "title": "short headline", "source": "institution or journal name", "snippet": "1-2 sentence description of this achievement or recognition" }
-  ]
+  ]` : ''}
 }
-
-For webHighlights: provide 2-3 notable facts — awards, recognition, key research milestones, industry partnerships, or highly cited contributions. Base on actual knowledge or reasonable inference from their publication record.`;
+${needsGptWebHighlights ? '\nFor webHighlights: provide 2-3 notable facts — awards, recognition, key research milestones, or highly cited contributions. Base on actual knowledge or reasonable inference from their publication record.' : '\n(No webHighlights field needed — real web results have been sourced separately.)'}`;
 
     let researchFocus = '';
     let brief = '';
@@ -152,11 +219,15 @@ For webHighlights: provide 2-3 notable facts — awards, recognition, key resear
       const parsed = JSON.parse(cleaned);
       researchFocus = parsed.researchFocus ?? '';
       brief = parsed.brief ?? '';
-      enrichWebHighlights = Array.isArray(parsed.webHighlights) ? parsed.webHighlights.slice(0, 3) : [];
+      // Use real web results if available, otherwise use GPT-generated highlights
+      enrichWebHighlights = webResults.length > 0
+        ? webResults
+        : (Array.isArray(parsed.webHighlights) ? parsed.webHighlights.slice(0, 4) : []);
     } catch (e) {
       console.error('GPT error during enrich:', e);
       researchFocus = `${researcher.subfield ?? researcher.category} researcher at ${researcher.affiliation}.`;
       brief = `${researcher.fullName} is a researcher at ${researcher.affiliation} specialising in ${researcher.domainTags ?? researcher.category}.\n\nFurther intelligence could not be generated at this time. Please try again.\n\nContact the researcher directly to learn more about venture potential.`;
+      enrichWebHighlights = webResults; // still save web results even if GPT failed
     }
 
     // 3. Save to DB

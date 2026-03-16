@@ -32,6 +32,8 @@ type WebHighlight = {
   title: string;
   source: string;
   snippet: string;
+  url?: string;
+  date?: string;
 };
 
 type Researcher = {
@@ -715,15 +717,47 @@ export default function ResearcherDetailPage() {
                   {/* Web Highlights */}
                   {researcher.enrichWebHighlights && researcher.enrichWebHighlights.length > 0 && (
                     <div>
-                      <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Research Highlights</div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="text-xs text-gray-400 uppercase tracking-wide">Web Highlights</div>
+                        {researcher.enrichWebHighlights.some(h => h.url) && (
+                          <span className="text-xs text-gray-300">· live results</span>
+                        )}
+                      </div>
                       <div className="space-y-2">
-                        {researcher.enrichWebHighlights.map((h, i) => (
-                          <div key={i} className="border border-gray-100 rounded p-3 hover:border-gray-200 transition">
-                            <p className="text-xs font-medium text-gray-800 mb-0.5">{h.title}</p>
-                            <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">{h.source}</p>
-                            <p className="text-xs text-gray-600 leading-relaxed">{h.snippet}</p>
-                          </div>
-                        ))}
+                        {researcher.enrichWebHighlights.map((h, i) => {
+                          const inner = (
+                            <>
+                              <div className="flex items-start justify-between gap-2 mb-0.5">
+                                <p className="text-xs font-medium text-gray-800 leading-snug">{h.title}</p>
+                                {h.url && (
+                                  <svg className="w-3 h-3 text-gray-300 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-xs text-gray-400 uppercase tracking-wide">{h.source}</p>
+                                {h.date && <span className="text-xs text-gray-300 font-mono">{h.date}</span>}
+                              </div>
+                              {h.snippet && <p className="text-xs text-gray-600 leading-relaxed">{h.snippet}</p>}
+                            </>
+                          );
+                          return h.url ? (
+                            <a
+                              key={i}
+                              href={h.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block border border-gray-100 rounded p-3 hover:border-gray-300 hover:bg-gray-50 transition"
+                            >
+                              {inner}
+                            </a>
+                          ) : (
+                            <div key={i} className="border border-gray-100 rounded p-3">
+                              {inner}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
