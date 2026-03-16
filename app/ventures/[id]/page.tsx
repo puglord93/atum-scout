@@ -217,6 +217,7 @@ type VentureQuestion = {
   question: string;
   answer: string | null;
   answered: boolean;
+  validationStatus: string; // 'untested' | 'testing' | 'validated' | 'invalidated'
   order: number;
   priority: string; // 'critical' | 'high' | 'medium'
 };
@@ -794,6 +795,22 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 // ─── Questions Section ────────────────────────────────────────────────────────
 
+const KANBAN_COLS = [
+  { id: 'untested',    label: 'Untested',    countColor: 'text-gray-500',  headerBg: 'bg-gray-50',   border: 'border-gray-200', dot: 'bg-gray-400'  },
+  { id: 'testing',     label: 'Testing',     countColor: 'text-blue-600',  headerBg: 'bg-blue-50',   border: 'border-blue-200', dot: 'bg-blue-500'  },
+  { id: 'validated',   label: 'Validated',   countColor: 'text-green-600', headerBg: 'bg-green-50',  border: 'border-green-200', dot: 'bg-green-500' },
+  { id: 'invalidated', label: 'Invalidated', countColor: 'text-red-500',   headerBg: 'bg-red-50',    border: 'border-red-200',  dot: 'bg-red-400'   },
+] as const;
+
+type KanbanColId = typeof KANBAN_COLS[number]['id'];
+
+function getStatus(q: VentureQuestion): KanbanColId {
+  if (q.validationStatus && ['untested', 'testing', 'validated', 'invalidated'].includes(q.validationStatus)) {
+    return q.validationStatus as KanbanColId;
+  }
+  return q.answered ? 'validated' : 'untested';
+}
+
 function QuestionsSection({
   ventureId,
   questions,
@@ -803,15 +820,17 @@ function QuestionsSection({
   questions: VentureQuestion[];
   onUpdate: (questions: VentureQuestion[]) => void;
 }) {
+  const [layout, setLayout] = useState<'list' | 'board'>('list');
   const [newQ, setNewQ] = useState('');
   const [answerInputs, setAnswerInputs] = useState<Record<number, string>>({});
   const [clearing, setClearing] = useState(false);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
-  const openCount = questions.filter(q => !q.answered).length;
+  const priorityOrder = ['critical', 'high', 'medium'];
+  const openCount     = questions.filter(q => !q.answered).length;
   const answeredCount = questions.filter(q => q.answered).length;
 
-  // Sort by priority: critical first, then high, then medium, then answered last
-  const priorityOrder = ['critical', 'high', 'medium'];
   const sorted = [...questions].sort((a, b) => {
     if (a.answered !== b.answered) return a.answered ? 1 : -1;
     return priorityOrder.indexOf(a.priority) - priorityOrder.indexOf(b.priority);
@@ -820,15 +839,11 @@ function QuestionsSection({
   const addQuestion = async () => {
     if (!newQ.trim()) return;
     const res = await fetch(`/api/ventures/${ventureId}/questions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: newQ.trim() }),
     });
     const data = await res.json();
-    if (data.success) {
-      onUpdate([...questions, data.data]);
-      setNewQ('');
-    }
+    if (data.success) { onUpdate([...questions, data.data]); setNewQ(''); }
   };
 
   const deleteQuestion = async (qId: number) => {
@@ -847,9 +862,8 @@ function QuestionsSection({
   const markAnswered = async (q: VentureQuestion) => {
     const answer = answerInputs[q.id] || '';
     const res = await fetch(`/api/ventures/${ventureId}/questions/${q.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answer, answered: true }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer, answered: true, validationStatus: 'validated' }),
     });
     const data = await res.json();
     if (data.success) {
@@ -859,108 +873,297 @@ function QuestionsSection({
   };
 
   const toggleAnswered = async (q: VentureQuestion) => {
+    const nowAnswered = !q.answered;
     const res = await fetch(`/api/ventures/${ventureId}/questions/${q.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answered: !q.answered }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answered: nowAnswered, validationStatus: nowAnswered ? 'validated' : 'untested' }),
     });
     const data = await res.json();
     if (data.success) onUpdate(questions.map(qq => qq.id === q.id ? data.data : qq));
   };
 
+  // Move card to a new kanban column
+  const moveCard = async (q: VentureQuestion, newStatus: KanbanColId) => {
+    if (getStatus(q) === newStatus) return;
+    const answered = newStatus === 'validated';
+    // Optimistic update
+    onUpdate(questions.map(qq => qq.id === q.id ? { ...qq, validationStatus: newStatus, answered } : qq));
+    const res = await fetch(`/api/ventures/${ventureId}/questions/${q.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ validationStatus: newStatus, answered }),
+    });
+    const data = await res.json();
+    if (data.success) onUpdate(questions.map(qq => qq.id === q.id ? data.data : qq));
+  };
+
+  // DnD handlers
+  const onDragStart = (e: React.DragEvent, qId: number) => {
+    setDraggedId(qId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const onDragOver = (e: React.DragEvent, colId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCol(colId);
+  };
+  const onDrop = (e: React.DragEvent, colId: KanbanColId) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    if (draggedId === null) return;
+    const q = questions.find(qq => qq.id === draggedId);
+    if (q) moveCard(q, colId);
+    setDraggedId(null);
+  };
+  const onDragEnd = () => { setDraggedId(null); setDragOverCol(null); };
+
   return (
     <div id="section-questions" className="py-8 border-b border-gray-100">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Assumptions to Validate</h2>
           <p className="text-xs text-gray-400 mt-0.5">{openCount} unvalidated · {answeredCount} validated</p>
         </div>
-        {questions.length > 0 && (
-          <button
-            onClick={clearAll}
-            disabled={clearing}
-            className="text-xs text-gray-400 hover:text-red-500 transition disabled:opacity-40"
-          >
-            Clear all
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-4 mb-4">
-        {sorted.map(q => (
-          <div key={q.id} className="group">
-            <div className="flex items-start gap-2.5">
-              <button
-                onClick={() => toggleAnswered(q)}
-                className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 transition ${
-                  q.answered ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-gray-400'
-                } flex items-center justify-center`}
-              >
-                {q.answered && (
-                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start gap-2 mb-1">
-                  {!q.answered && <PriorityBadge priority={q.priority} />}
-                  <p className={`text-sm leading-relaxed ${q.answered ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
-                    {q.question}
-                  </p>
-                </div>
-                {q.answered && q.answer && (
-                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">Validation: {q.answer}</p>
-                )}
-                {!q.answered && (
-                  <div className="mt-2 flex items-start gap-2">
-                    <textarea
-                      rows={2}
-                      placeholder="How was this validated? What did you find?"
-                      value={answerInputs[q.id] || ''}
-                      onChange={e => setAnswerInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
-                      className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#F0602C] resize-none text-gray-700"
-                    />
-                    <button
-                      onClick={() => markAnswered(q)}
-                      disabled={!(answerInputs[q.id] || '').trim()}
-                      className="h-8 px-2.5 text-xs font-medium text-white rounded transition disabled:opacity-40 flex-shrink-0"
-                      style={{ backgroundColor: '#F0602C' }}
-                    >
-                      Mark Validated
-                    </button>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => deleteQuestion(q.id)}
-                className="mt-0.5 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition flex-shrink-0"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <div className="flex items-center gap-2">
+          {/* Layout toggle */}
+          <div className="flex items-center border border-gray-200 rounded overflow-hidden">
+            <button
+              onClick={() => setLayout('list')}
+              title="List view"
+              className={`px-2.5 py-1.5 text-xs transition ${layout === 'list' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setLayout('board')}
+              title="Board view"
+              className={`px-2.5 py-1.5 text-xs border-l border-gray-200 transition ${layout === 'board' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+              </svg>
+            </button>
           </div>
-        ))}
+          {questions.length > 0 && (
+            <button onClick={clearAll} disabled={clearing}
+              className="text-xs text-gray-400 hover:text-red-500 transition disabled:opacity-40">
+              Clear all
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          placeholder="Add an assumption..."
-          value={newQ}
-          onChange={e => setNewQ(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addQuestion()}
-          className="flex-1 h-9 text-sm border border-gray-200 rounded px-3 focus:outline-none focus:border-[#F0602C]"
-        />
+      {/* ── Layout A: List ── */}
+      {layout === 'list' && (
+        <>
+          <div className="space-y-4 mb-4">
+            {sorted.map(q => (
+              <div key={q.id} className="group">
+                <div className="flex items-start gap-2.5">
+                  <button
+                    onClick={() => toggleAnswered(q)}
+                    className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 transition flex items-center justify-center ${
+                      q.answered ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {q.answered && (
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
+                      </svg>
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2 mb-1">
+                      {!q.answered && <PriorityBadge priority={q.priority} />}
+                      <p className={`text-sm leading-relaxed ${q.answered ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                        {q.question}
+                      </p>
+                    </div>
+                    {q.answered && q.answer && (
+                      <p className="text-xs text-gray-400 mt-1 leading-relaxed">Validation: {q.answer}</p>
+                    )}
+                    {!q.answered && (
+                      <div className="mt-2 flex items-start gap-2">
+                        <textarea rows={2}
+                          placeholder="How was this validated? What did you find?"
+                          value={answerInputs[q.id] || ''}
+                          onChange={e => setAnswerInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
+                          className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#F0602C] resize-none text-gray-700"
+                        />
+                        <button onClick={() => markAnswered(q)}
+                          disabled={!(answerInputs[q.id] || '').trim()}
+                          className="h-8 px-2.5 text-xs font-medium text-white rounded transition disabled:opacity-40 flex-shrink-0"
+                          style={{ backgroundColor: '#F0602C' }}>
+                          Mark Validated
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => deleteQuestion(q.id)}
+                    className="mt-0.5 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition flex-shrink-0">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="text" placeholder="Add an assumption..."
+              value={newQ} onChange={e => setNewQ(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addQuestion()}
+              className="flex-1 h-9 text-sm border border-gray-200 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+            />
+            <button onClick={addQuestion} disabled={!newQ.trim()}
+              className="h-9 px-3 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:border-gray-400 transition disabled:opacity-40">
+              + Add
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Layout C: Board ── */}
+      {layout === 'board' && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            {KANBAN_COLS.map(col => {
+              const colCards = questions.filter(q => getStatus(q) === col.id)
+                .sort((a, b) => priorityOrder.indexOf(a.priority) - priorityOrder.indexOf(b.priority));
+              const isOver = dragOverCol === col.id;
+
+              return (
+                <div
+                  key={col.id}
+                  onDragOver={e => onDragOver(e, col.id)}
+                  onDrop={e => onDrop(e, col.id)}
+                  onDragLeave={() => setDragOverCol(null)}
+                  className={`rounded-lg border transition-colors ${col.border} ${isOver ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                >
+                  {/* Column header */}
+                  <div className={`flex items-center justify-between px-3 py-2.5 rounded-t-lg border-b ${col.headerBg} ${col.border}`}>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
+                      <span className="text-xs font-medium text-gray-700">{col.label}</span>
+                    </div>
+                    <span className={`text-xs font-mono font-semibold ${col.countColor}`}>{colCards.length}</span>
+                  </div>
+
+                  {/* Cards */}
+                  <div className="p-2 space-y-2 min-h-[120px]">
+                    {colCards.map(q => (
+                      <KanbanCard
+                        key={q.id}
+                        q={q}
+                        currentCol={col.id}
+                        onMove={moveCard}
+                        onDelete={deleteQuestion}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        isDragging={draggedId === q.id}
+                      />
+                    ))}
+                    {colCards.length === 0 && (
+                      <div className={`h-[80px] flex items-center justify-center rounded border border-dashed ${col.border} ${isOver ? 'opacity-100' : 'opacity-40'}`}>
+                        <span className="text-xs text-gray-400">Drop here</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add new assumption (also available in board view) */}
+          <div className="flex items-center gap-2">
+            <input type="text" placeholder="Add an assumption..."
+              value={newQ} onChange={e => setNewQ(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addQuestion()}
+              className="flex-1 h-9 text-sm border border-gray-200 rounded px-3 focus:outline-none focus:border-[#F0602C]"
+            />
+            <button onClick={addQuestion} disabled={!newQ.trim()}
+              className="h-9 px-3 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:border-gray-400 transition disabled:opacity-40">
+              + Add
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Kanban Card ──────────────────────────────────────────────────────────────
+
+function KanbanCard({
+  q, currentCol, onMove, onDelete, onDragStart, onDragEnd, isDragging,
+}: {
+  q: VentureQuestion;
+  currentCol: KanbanColId;
+  onMove: (q: VentureQuestion, col: KanbanColId) => void;
+  onDelete: (id: number) => void;
+  onDragStart: (e: React.DragEvent, id: number) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+}) {
+  const [showMove, setShowMove] = useState(false);
+
+  return (
+    <div
+      draggable
+      onDragStart={e => onDragStart(e, q.id)}
+      onDragEnd={onDragEnd}
+      className={`group relative bg-white border border-gray-200 rounded-md p-2.5 cursor-grab active:cursor-grabbing transition-all ${
+        isDragging ? 'opacity-40 scale-95' : 'hover:border-gray-300 hover:shadow-sm'
+      }`}
+    >
+      {/* Priority + delete */}
+      <div className="flex items-start justify-between gap-1 mb-1.5">
+        <PriorityBadge priority={q.priority} />
         <button
-          onClick={addQuestion}
-          disabled={!newQ.trim()}
-          className="h-9 px-3 text-sm font-medium text-gray-700 border border-gray-200 rounded hover:border-gray-400 transition disabled:opacity-40"
+          onClick={() => onDelete(q.id)}
+          className="opacity-0 group-hover:opacity-100 text-gray-200 hover:text-red-400 transition flex-shrink-0 -mt-0.5"
         >
-          + Add
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+          </svg>
         </button>
+      </div>
+
+      {/* Question text */}
+      <p className="text-xs text-gray-800 leading-relaxed mb-2">{q.question}</p>
+
+      {/* Validation note */}
+      {q.answer && (
+        <p className="text-xs text-gray-400 italic mb-1.5 leading-relaxed">{q.answer}</p>
+      )}
+
+      {/* Move to column */}
+      <div className="relative">
+        <button
+          onClick={() => setShowMove(v => !v)}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+          Move
+        </button>
+        {showMove && (
+          <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-200 rounded-md shadow-md z-10 py-1 min-w-[120px]">
+            {KANBAN_COLS.filter(c => c.id !== currentCol).map(c => (
+              <button
+                key={c.id}
+                onClick={() => { onMove(q, c.id); setShowMove(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

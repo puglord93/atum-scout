@@ -153,16 +153,17 @@ model VentureSection {
 }
 
 model VentureQuestion {
-  id            Int         @id @default(autoincrement())
-  ventureCaseId Int
-  ventureCase   VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
-  question      String
-  answer        String?
-  answered      Boolean     @default(false)
-  order         Int         @default(0)
-  priority      String      @default("medium")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id               Int         @id @default(autoincrement())
+  ventureCaseId    Int
+  ventureCase      VentureCase @relation(fields: [ventureCaseId], references: [id], onDelete: Cascade)
+  question         String
+  answer           String?
+  answered         Boolean     @default(false)
+  validationStatus String      @default("untested") @map("validation_status") // untested | testing | validated | invalidated
+  order            Int         @default(0)
+  priority         String      @default("medium")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 }
 
 model VentureAction {
