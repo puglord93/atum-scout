@@ -16,6 +16,8 @@
 
 **DB schema changes**: Prisma migrations can't run cleanly on Neon cold-start. Use the **Neon SQL Editor** to run raw SQL (`ALTER TABLE ...`) and also update `prisma/schema.prisma`. Do NOT rely on `prisma migrate deploy` for production column additions.
 
+**Neon auto-suspend**: The database suspends after ~5 minutes of inactivity (free/launch tier). When suspended, the app may show empty data or connection errors — this is NOT data loss. To wake it up: open the Neon SQL Editor and run any query (e.g. `SELECT 1`). The app also wakes it on next request but with a cold-start delay of 1-3 seconds. This is expected behavior.
+
 ---
 
 ## What This Project Does
