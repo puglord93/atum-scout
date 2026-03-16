@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Researcher, TechOffer } from '@prisma/client';
+import { TechOffer } from '@prisma/client';
 import fs from 'fs';
 
 // Column name mappings for Funnel 2 (different sheets have different names)
@@ -174,7 +174,8 @@ export async function loadTechOffersFromExcel(filePath: string): Promise<Omit<Te
 /**
  * Load researchers from Funnel 3 Excel file
  */
-export async function loadResearchersFromExcel(filePath: string): Promise<Omit<Researcher, 'id' | 'createdAt' | 'updatedAt'>[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function loadResearchersFromExcel(filePath: string): Promise<any[]> {
   const buffer = fs.readFileSync(filePath);
   const workbook = XLSX.read(buffer, { type: 'buffer' });
 
@@ -190,7 +191,8 @@ export async function loadResearchersFromExcel(filePath: string): Promise<Omit<R
   // Parse with header starting from row 2 (row 1 is title)
   const data: any[] = XLSX.utils.sheet_to_json(worksheet, { range: 1 });
 
-  const researchers: Omit<Researcher, 'id' | 'createdAt' | 'updatedAt'>[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const researchers: any[] = [];
 
   for (const row of data) {
     const fullName = safeStr(row['Full Name'] || '');

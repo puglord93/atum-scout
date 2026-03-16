@@ -37,6 +37,15 @@ model Researcher {
   // Provenance
   source            String   @default("excel_import")
 
+  // AI Enrichment
+  enrichResearchFocus  String?   @map("enrich_research_focus")
+  enrichBrief          String?   @map("enrich_brief")
+  enrichPublications   Json?     @map("enrich_publications")
+  enrichSignals        Json?     @map("enrich_signals")
+  enrichCoAuthors      Json?     @map("enrich_co_authors")
+  enrichWebHighlights  Json?     @map("enrich_web_highlights")
+  enrichedAt           DateTime? @map("enriched_at")
+
   // Activity log
   activityNotes     ResearcherNote[]
 

@@ -5,6 +5,35 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { PIPELINE_STAGES, getStage, stageIndex } from '@/lib/stages';
 
+type EnrichPublication = {
+  title: string;
+  year: number | null;
+  journal: string | null;
+  citations: number;
+  influential: number;
+  openAccess: boolean;
+};
+
+type EnrichSignals = {
+  influentialCitations: number;
+  openAccessPapers: number;
+  totalPapersAnalyzed: number;
+  coAuthorsFound: number;
+  semanticScholarFound: boolean;
+};
+
+type CoAuthor = {
+  name: string;
+  institution: string;
+  sharedPapers: number;
+};
+
+type WebHighlight = {
+  title: string;
+  source: string;
+  snippet: string;
+};
+
 type Researcher = {
   id: number;
   fullName: string;
@@ -24,6 +53,14 @@ type Researcher = {
   contactDate: string | null;
   contactedBy: string | null;
   stage: string;
+  // AI Enrichment
+  enrichResearchFocus: string | null;
+  enrichBrief: string | null;
+  enrichPublications: EnrichPublication[] | null;
+  enrichSignals: EnrichSignals | null;
+  enrichCoAuthors: CoAuthor[] | null;
+  enrichWebHighlights: WebHighlight[] | null;
+  enrichedAt: string | null;
 };
 
 type ResearcherNote = {
@@ -92,6 +129,9 @@ export default function ResearcherDetailPage() {
   const [noteAuthor, setNoteAuthor] = useState('');
   const [noteType, setNoteType] = useState<ResearcherNote['type']>('note');
   const [submittingNote, setSubmittingNote] = useState(false);
+
+  const [enriching, setEnriching] = useState(false);
+  const [showAllPubs, setShowAllPubs] = useState(false);
 
   const [knowPersonally, setKnowPersonally] = useState(false);
   const [tone, setTone] = useState<'formal' | 'casual'>('formal');
@@ -248,6 +288,19 @@ export default function ResearcherDetailPage() {
     }
   };
 
+  const handleEnrich = async () => {
+    setEnriching(true);
+    try {
+      const res = await fetch(`/api/researchers/${params.id}/enrich`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) setResearcher(data.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnriching(false);
+    }
+  };
+
   const copyText = (text: string, field: 'subject' | 'body') => {
     navigator.clipboard.writeText(text);
     setCopied(field);
@@ -298,8 +351,32 @@ export default function ResearcherDetailPage() {
                 )}
               </div>
             </div>
-            <div className={`inline-flex items-center justify-center w-9 h-9 rounded text-sm font-semibold flex-shrink-0 ${TIER_COLORS[researcher.tier] ?? 'bg-gray-100 text-gray-600'}`}>
-              {researcher.tier}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleEnrich}
+                disabled={enriching}
+                className="h-8 px-3 text-xs border border-gray-200 rounded text-gray-600 hover:border-gray-400 hover:text-gray-900 transition disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {enriching ? (
+                  <>
+                    <svg className="w-3 h-3 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <span>Enriching…</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>{researcher.enrichedAt ? 'Re-enrich' : 'Enrich with AI'}</span>
+                  </>
+                )}
+              </button>
+              <div className={`inline-flex items-center justify-center w-9 h-9 rounded text-sm font-semibold ${TIER_COLORS[researcher.tier] ?? 'bg-gray-100 text-gray-600'}`}>
+                {researcher.tier}
+              </div>
             </div>
           </div>
 
@@ -545,6 +622,156 @@ export default function ResearcherDetailPage() {
 
           </div>
         </div>
+
+        {/* AI Intelligence — full width, shown when enriched or enriching */}
+        {(researcher.enrichedAt || enriching) && (
+          <div className="mt-6 bg-white border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">AI Intelligence</span>
+                {researcher.enrichedAt && !enriching && (
+                  <span className="text-xs text-gray-300 font-mono">
+                    · {new Date(researcher.enrichedAt).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                )}
+              </div>
+              {enriching && (
+                <span className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Analysing…
+                </span>
+              )}
+            </div>
+
+            {enriching ? (
+              <div className="px-5 py-10 text-center">
+                <p className="text-sm text-gray-400">Fetching publications from Semantic Scholar and generating intelligence brief…</p>
+                <p className="text-xs text-gray-300 mt-1">Usually takes 10–20 seconds</p>
+              </div>
+            ) : (
+              <div className="px-5 py-5 space-y-6">
+
+                {/* Research Focus */}
+                {researcher.enrichResearchFocus && (
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-1.5">Research Focus</div>
+                    <p className="text-sm text-gray-800 leading-relaxed italic">{researcher.enrichResearchFocus}</p>
+                  </div>
+                )}
+
+                {/* Signals strip */}
+                {researcher.enrichSignals && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Influential Citations', value: researcher.enrichSignals.influentialCitations },
+                      { label: 'Papers Analysed', value: researcher.enrichSignals.totalPapersAnalyzed },
+                      { label: 'Co-authors Found', value: researcher.enrichSignals.coAuthorsFound },
+                      { label: 'Open Access', value: researcher.enrichSignals.openAccessPapers },
+                    ].map(s => (
+                      <div key={s.label} className="bg-gray-50 border border-gray-100 rounded px-3 py-2.5">
+                        <div className="font-mono text-lg font-semibold text-gray-900">{s.value}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Two column: Publications + Web Highlights */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                  {/* Top Publications */}
+                  {researcher.enrichPublications && researcher.enrichPublications.length > 0 && (
+                    <div>
+                      <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Top Publications</div>
+                      <div className="space-y-2">
+                        {(showAllPubs ? researcher.enrichPublications : researcher.enrichPublications.slice(0, 3)).map((pub, i) => (
+                          <div key={i} className="border border-gray-100 rounded p-3 hover:border-gray-200 transition">
+                            <p className="text-xs font-medium text-gray-800 leading-snug mb-1">{pub.title}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-400 font-mono flex-wrap">
+                              {pub.year && <span>{pub.year}</span>}
+                              {pub.journal && <><span className="text-gray-200">·</span><span className="truncate max-w-[140px]">{pub.journal}</span></>}
+                              <span className="text-gray-200">·</span>
+                              <span>{pub.citations.toLocaleString()} citations</span>
+                              {pub.influential > 0 && <><span className="text-gray-200">·</span><span className="text-amber-600">{pub.influential} influential</span></>}
+                              {pub.openAccess && <span className="bg-green-50 text-green-600 px-1 rounded">OA</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {researcher.enrichPublications.length > 3 && (
+                        <button
+                          onClick={() => setShowAllPubs(v => !v)}
+                          className="mt-2 text-xs text-gray-400 hover:text-gray-700 transition"
+                        >
+                          {showAllPubs ? 'Show less' : `Show all ${researcher.enrichPublications.length}`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Web Highlights */}
+                  {researcher.enrichWebHighlights && researcher.enrichWebHighlights.length > 0 && (
+                    <div>
+                      <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Research Highlights</div>
+                      <div className="space-y-2">
+                        {researcher.enrichWebHighlights.map((h, i) => (
+                          <div key={i} className="border border-gray-100 rounded p-3 hover:border-gray-200 transition">
+                            <p className="text-xs font-medium text-gray-800 mb-0.5">{h.title}</p>
+                            <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">{h.source}</p>
+                            <p className="text-xs text-gray-600 leading-relaxed">{h.snippet}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Intelligence Brief */}
+                {researcher.enrichBrief && (
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Intelligence Brief</div>
+                    <div className="space-y-3">
+                      {researcher.enrichBrief.split(/\n\n+/).map((para, i) => (
+                        <p key={i} className="text-sm text-gray-700 leading-relaxed">{para}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Co-authors */}
+                {researcher.enrichCoAuthors && researcher.enrichCoAuthors.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Key Co-authors</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-100">
+                            <th className="text-left py-1.5 pr-4 text-gray-400 font-medium">Name</th>
+                            <th className="text-left py-1.5 pr-4 text-gray-400 font-medium hidden sm:table-cell">Institution</th>
+                            <th className="text-right py-1.5 text-gray-400 font-medium">Shared Papers</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {researcher.enrichCoAuthors.slice(0, 8).map((ca, i) => (
+                            <tr key={i} className="hover:bg-gray-50 transition">
+                              <td className="py-2 pr-4 text-gray-800 font-medium">{ca.name}</td>
+                              <td className="py-2 pr-4 text-gray-500 hidden sm:table-cell">{ca.institution || '—'}</td>
+                              <td className="py-2 text-right font-mono text-gray-600">{ca.sharedPapers}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Activity Log — full width below 2-col grid */}
         <div className="mt-6 bg-white border border-gray-200 rounded-lg">
