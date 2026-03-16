@@ -46,26 +46,20 @@ Three workflows in one tool:
   - Action items — add, toggle done, inline edit
   - Methodology info panels (ⓘ) per section
   - Mobile responsive — scrollable section nav pills, responsive layout
+  - Activity Log per venture (Note / Call / Email / Meeting / Customer Interview)
 
 ---
 
 ## 🔜 Next Up (prioritised)
 
-### 1. Notes on Venture Cases
-Activity log per venture — same pattern as researcher notes.
-- Log types: Note / Call / Email / Meeting / Customer Interview
-- Each entry: date, author, content
-- Captures: customer discovery calls, expert interviews, team decisions, investor conversations, partner discussions
-- Context that doesn't fit into "inputs" (which feed AI analysis) — this is the operational activity log
+### 1. AI Enrichment ← current
+Deep AI-powered enrichment for researchers and tech offers — beyond Semantic Scholar.
+- **Researcher**: research focus summary, recent publications/patents, citation trends, web presence hints, why they're relevant to ATUM's thesis
+- **Tech offer**: comparable startups/companies, recent funding in the space, "why now" signals (regulatory changes, cost curves, new enabling tech), market context
+- Triggered manually per record via "Enrich with AI" button — results saved to DB, shown inline on detail pages
 
 ### 2. Validation Board — Layout C
-Kanban view for assumptions on a venture. Drag assumptions across columns: **Untested → Testing → Validated → Invalidated**. Gives a visual snapshot of where validation work stands on a venture. Toggle between current linear view (Layout A) and board view (Layout C).
-
-### 2. AI Enrichment
-Deep AI-powered enrichment for researchers and tech offers — beyond Semantic Scholar.
-- **Researcher**: auto-pull recent publications, patents, citation trends, research focus summary, web presence (personal site, Google Scholar, LinkedIn hints)
-- **Tech offer**: surface comparable startups/companies, recent funding in the space, "why now" signals (regulatory changes, cost curves, new enabling tech)
-- Triggered manually per record ("Enrich with AI" button), results saved to DB
+Kanban view for assumptions on a venture. Columns: **Untested → Testing → Validated → Invalidated**. Visual snapshot of where validation work stands. Toggle between current scroll view (Layout A) and board view.
 
 ### 3. Grant Pipeline
 Per-venture tracking of Singapore deep-tech grant opportunities.
